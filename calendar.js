@@ -14,7 +14,7 @@ body {
 
   var calName = 'calendar';
 
-  angular.module('scrollingCalendar').directive(calName, function($window, $document){
+  angular.module('scrollingCalendar').directive(calName, function($window, $document, $timeout){
     // Runs during compile
 
 
@@ -25,7 +25,7 @@ body {
       // scope: {}, // {} = isolate, true = child, false/undefined = no change
       // controller: function($scope, $element, $attrs, $transclude) {},
       // require: 'ngModel', // Array = multiple requires, ? = optional, ^ = check parent elements
-      // restrict: 'A', // E = Element, A = Attribute, C = Class, M = Comment
+      restrict: 'A',
       // template: '',
       // templateUrl: '',
       // replace: true,
@@ -38,17 +38,22 @@ body {
         var parentElement = element.parent();
         var originalParentElement = parentElement[0];
         var todayDate;
+        var todayElement;
         var firstDate;
         var lastDate;
         var scrollDates = [];
-        $scope.currentScrollIndex = 0;
+        var color = [233, 229, 236].join(',');
+        var offset = 0.5;
+        var speed = 2;
+        var firstDayOfWeek = 1;
+        var lastDaysOfWeek = [6, 0, 1, 2, 3, 4, 5];
         var currentMonth, nextMonth;
 
+        $scope.currentScrollIndex = 0;
         $scope.$watch('currentScrollIndex', function (newIndex) {
           var nextM, nextY;
           var month = scrollDates[newIndex].month;
           var year = scrollDates[newIndex].year;
-          currentMonth = angular.element(originalDocument.getElementsByClassName([year, month].join('_')));
           if (month === 11) {
             nextM = 0;
             nextY = year+1;
@@ -56,120 +61,85 @@ body {
             nextM = month + 1;
             nextY = year;
           }
+          currentMonth = angular.element(originalDocument.getElementsByClassName([year, month].join('_')));
           nextMonth = angular.element(originalDocument.getElementsByClassName([nextY, nextM].join('_')));
-
-          // console.log(scrollDates);
-
-          // console.log(currentMonth);
-          // console.log([nextY, nextM].join('_'));
-
-          // console.log(newIndex);
-          // console.log(scrollDates);
-
-          // console.log(nextMonth);
 
         });
 
-        var counter = 0;
-
-        var color = [233, 229, 236].join(',');
-
-        function expandCalendar() {
-          // console.log(originalParentElement.scrollTop);
-          // counter++;
-          // if (counter < 10) return;
-          // counter = 0;
+        function colorizeMonth() {
 
           if (scrollDates[$scope.currentScrollIndex+1] && originalParentElement.scrollTop > scrollDates[$scope.currentScrollIndex+1].pos) {
-            // console.log(scrollDates[$scope.currentScrollIndex+1].month + 1);
             $scope.$apply($scope.currentScrollIndex++);
           }
 
           if (scrollDates[$scope.currentScrollIndex] && originalParentElement.scrollTop < scrollDates[$scope.currentScrollIndex].pos) {
-            // console.log(scrollDates[$scope.currentScrollIndex-1].month + 1);
             $scope.$apply($scope.currentScrollIndex--);
-          }
-
-          if (originalParentElement.scrollTop < 200) {
-            var oldScrollHeight = originalElement.scrollHeight;
-            // for(var i = 0; i < calculateAdditionalLines(firstDate); i++) prependWeek();
-            prependMonth();
-            originalParentElement.scrollTop = originalElement.scrollHeight - oldScrollHeight + 200;
-            // console.log('added ' + calculateAdditionalLines(firstDate) + ' weeks');
-          }
-          else if (originalParentElement.scrollTop > originalElement.scrollHeight - originalParentElement.offsetHeight - 600) {
-            for(var i = 0; i < 10; i++) appendWeek();
-            console.log(lastDate);
           }
 
           if (scrollDates[$scope.currentScrollIndex] && scrollDates[$scope.currentScrollIndex+1]) {
             var difference = scrollDates[$scope.currentScrollIndex+1].pos - scrollDates[$scope.currentScrollIndex].pos;
             var pos = originalParentElement.scrollTop - scrollDates[$scope.currentScrollIndex].pos;
-            var val = (pos/difference);
-            var offset = 0.5;
-            var speed = 2;
+            var percentage = (pos/difference);
             
-            // console.log(val);
-            if (val>offset && (val-offset)*speed/(1-offset) <= 1) {
-              // console.log('rgba(0, 128, 128, ' + val + ')');
+            if (percentage>offset && (percentage-offset)*speed/(1-offset) <= 1) {
               currentMonth.css({
-                'background-color': 'rgba(' + color + ', ' + ((val-offset)*speed/(1-offset)) + ')'
+                'background-color': 'rgba(' + color + ', ' + ((percentage-offset)*speed/(1-offset)) + ')'
               });
-              // console.log(currentMonth);
-              // console.log(val);
               nextMonth.css({
-                'background-color': 'rgba(' + color + ', ' + (1-(val-offset)*speed/(1-offset)) + ')'
+                'background-color': 'rgba(' + color + ', ' + (1-(percentage-offset)*speed/(1-offset)) + ')'
               });
-              // console.log(scrollDates[$scope.currentScrollIndex].month + 1 + pos/difference);
             }
-
-            if (val<offset) {
+            if (percentage<offset) {
               currentMonth.css({
                 'background-color': 'rgba(' + color + ', 0)'
               });
             }
 
-            // if ((val-offset)*speed/(1-offset) > 1) {
-            //   currentMonth.css({
-            //     'background-color': 'rgba(218, 216, 222, ' + 1 + ')'
-            //   });
-            //   nextMonth.css({
-            //     'background-color': 'rgba(218, 216, 222, ' + 0 + ')'
-            //   });
-            // }
+            if ((percentage-offset)*speed/(1-offset) > 1) {
+              currentMonth.css({
+                'background-color': 'rgba(218, 216, 222, ' + 1 + ')'
+              });
+              nextMonth.css({
+                'background-color': 'rgba(218, 216, 222, ' + 0 + ')'
+              });
+            }
           }
+        }
 
+        function expandCalendar() {
+          if (originalParentElement.scrollTop < 200) {
+            var oldScrollHeight = originalElement.scrollHeight;
+            prependMonth();
+            originalParentElement.scrollTop = originalElement.scrollHeight - oldScrollHeight + 200;
+          }
+          else if (originalParentElement.scrollTop > originalElement.scrollHeight - originalParentElement.offsetHeight - 600) {
+            for(var i = 0; i < 10; i++) appendWeek();
+          }
 
         }
 
+        function refreshCalendar() {
+
+          colorizeMonth();
+          expandCalendar();
+          
+        }
+
         function generateDay(day, date) {
-          // var isShaded = (date.getMonth() % 2);
           var isToday = (date.getDate() === todayDate.getDate() && date.getMonth() === todayDate.getMonth() && date.getFullYear() === todayDate.getFullYear());
+          if (isToday) day.className += ' today';
+          if (!todayElement) todayElement = angular.element(day);
 
-          // if(isShaded) day.className += ' shaded';
-          if(isToday) day.className += ' today';
-
-          // day.id = idForDate(date);
           day.innerHTML = '<span>' + date.getDate() + ' ' + (date.getMonth()+1) + '</span>';
           angular.element(day).addClass([date.getYear(), date.getMonth()].join('_'));
           angular.element(day).css({
             'background-color': 'rgba(' + color + ', 1)'
           });
 
-          // lookupItemsForParentId(day.id, function(items)
-          // {
-          //  for(var i in items)
-          //  {
-          //    var item = generateItem(day.id, items[i].itemId);
-          //    item.value = items[i].itemValue;
-          //    recalculateHeight(item.id);
-          //  }
-          // });
         }
 
         function prependMonth() {
           var lines = calculateWeeks(firstDate);
-          console.log(lines);
           for(var i = 0; i < lines; i++) {
             if (i < lines - 1) {
               prependWeek();
@@ -181,11 +151,8 @@ body {
               var tempDate = new Date(firstDate);
               tempDate.setDate(tempDate.getDate() + 7);
               scrollDates.unshift({ month: tempDate.getMonth(), pos: week.offsetTop, year: tempDate.getYear() });
-              // $scope.currentScrollIndex++;
-              // console.log(scrollDates);
             }
           }
-          // console.log(firstDate);
         }
 
         function prependWeek() {
@@ -197,13 +164,8 @@ body {
 
             var day = week.insertCell(0);
             generateDay(day, firstDate);
-            // console.log(firstDate);
 
-          } while (firstDate.getDay() !== 0);
-
-          // var extra = week.insertCell(-1);
-          // extra.className = 'extra';
-          // extra.innerHTML = monthName;
+          } while (firstDate.getDay() !== firstDayOfWeek);
 
           return week;
         }
@@ -220,12 +182,8 @@ body {
 
             var day = week.insertCell(-1);
             generateDay(day, lastDate);
-          } while (lastDate.getDay() !== 6);
+          } while (lastDate.getDay() !== lastDaysOfWeek[firstDayOfWeek]);
 
-          // extra cell for month name
-          // var extra = week.insertCell(-1);
-          // extra.className = 'extra';
-          // extra.innerHTML = monthName;
         }
 
         function calculateWeeks(date) {
@@ -233,81 +191,42 @@ body {
           if (tempDate.getDate() === 1) tempDate.setDate(0); // jump to correct month
           var daysOfMonth = new Date(tempDate.getFullYear(), tempDate.getMonth()+1, 0).getDate();
           var dayDiff = daysOfMonth - tempDate.getDate() + 1;
-
           var weeks = Math.ceil((daysOfMonth - dayDiff) / 7);
-
-          console.log('calculated ' + dayDiff + ' for ' + (tempDate.getMonth() + 1));
-
           return weeks;
-
-
-
-
-          // // TODO take weekStart into account
-          // function firstDayOfMonth(date) {
-          //   var tempDate = new Date(date);
-          //   tempDate.setDate(1);
-          //   return tempDate.getDay() + 1;
-          // }
-
-          // function lastDateOfMonth(date) {
-          //   return new Date(date.getFullYear(), date.getMonth()+1, 0).getDate();
-          // }
-
-          // var lines = (firstDayOfMonth(date) + lastDateOfMonth(date) > 36) ? 5 : 4;
-
-          // if (new Date(date.getFullYear(), date.getMonth()+1, 0).getDay() === 0) lines++;
-          // return lines;
-
         }
         
         function loadCalendarAroundDate(seedDate) {
-          // calendarTableElement.innerHTML = '';
+          var startDate = new Date(seedDate);
           firstDate = new Date(seedDate);
 
           // move firstDate to the beginning of the week
-          while(firstDate.getDay() !== 0) firstDate.setDate(firstDate.getDate() - 1);
+          while(firstDate.getDay() !== firstDayOfWeek) firstDate.setDate(firstDate.getDate() - 1);
 
           // set lastDate to the day before firstDate
           lastDate = new Date(firstDate);
           lastDate.setDate(firstDate.getDate() - 1);
 
-          // expandCalendar();
+          var week, wasFirst;
 
-          var week = prependWeek();
-          // prependWeek();
+          while (firstDate.getMonth() === startDate.getMonth() && firstDate.getDate() !== 1) {
+            week = prependWeek();
+          }
+
           scrollDates.push({ month: seedDate.getMonth(), pos: week.offsetTop, year: lastDate.getYear() });
 
-          // console.log(firstDate);
-
           prependMonth();
-          appendWeek();
-          appendWeek();
-          appendWeek();
-          appendWeek();
-          
-          // prependWeek();
-          // prependWeek();
-          // prependWeek();
-          // prependWeek();
-          // prependWeek();
-          // prependWeek();
-          // prependWeek();
-          // prependWeek();
-          // prependWeek();
-          // prependWeek();
-          // prependWeek();
-          // prependWeek();
 
-          // console.log(scrollDates);
+          for(var i = 1; i<=10; i++) appendWeek();
 
-          // need to let safari recalculate heights before we start scrolling
-          // setTimeout('scrollToToday()', 50);
+          originalParentElement.scrollTop = todayElement[0].offsetTop;
+
+          // let the watcher trigger before start colorizing
+          $timeout(colorizeMonth, 50);
         }
 
         todayDate = new Date();
         loadCalendarAroundDate(new Date());
-        parentElement.bind('scroll', expandCalendar);
+        parentElement.bind('scroll', refreshCalendar);
 
       }
     };
