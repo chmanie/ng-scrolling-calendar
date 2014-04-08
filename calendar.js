@@ -36,7 +36,7 @@ body {
 
   var calName = 'calendar';
 
-  angular.module('scrollingCalendar').directive(calName, function($window, $document, $timeout, $compile, calListeners, $parse){
+  angular.module('scrollingCalendar').directive(calName, function($window, $document, $timeout, $compile, calListeners, $parse, $q){
     // Runs during compile
 
     return {
@@ -87,6 +87,15 @@ body {
 
         });
 
+        var getDataFn = $parse(attrs.calData);
+
+        function getEntryData(firstDate, lastDate) {
+          return getDataFn($scope, {
+            $firstDate: firstDate,
+            $lastDate: lastDate
+          });
+        }
+
         function colorizeMonth() {
 
           if (scrollDates[$scope.currentScrollIndex+1] && originalParentElement.scrollTop > scrollDates[$scope.currentScrollIndex+1].pos) {
@@ -130,11 +139,12 @@ body {
         function expandCalendar() {
           if (originalParentElement.scrollTop < 200) {
             var oldScrollHeight = originalElement.scrollHeight;
-            prependMonth();
-            originalParentElement.scrollTop = originalElement.scrollHeight - oldScrollHeight + 200;
+            prependMonth().then(function () {
+              originalParentElement.scrollTop = originalElement.scrollHeight - oldScrollHeight + 200;
+            });
           }
           else if (originalParentElement.scrollTop > originalElement.scrollHeight - originalParentElement.offsetHeight - 600) {
-            for(var i = 0; i < 10; i++) appendWeek();
+            appendSomeWeeks();
           }
 
         }
@@ -146,9 +156,20 @@ body {
           
         }
 
-        function generateDay(day, date) {
+        function generateDay(day, date, data) {
           var scope = $scope.$new();
-          scope.events = [{ title: 'Bla' }];
+          scope.events = [];
+          // console.log(date);
+          if (data && data.length) {
+            // TODO sort by date and build a nice algorithm that removes the entries
+            // and stops if the next element is already the next day
+            // attention! has to work both ways!
+            data.forEach(function (entry) {
+              if (date.getDate() === entry.dateBegin.getDate() && date.getMonth() === entry.dateBegin.getMonth() && date.getFullYear() === entry.dateBegin.getFullYear()) {
+                scope.events.push(entry);
+              }
+            });
+          }
           day = angular.element(day);
           var isToday = (date.getDate() === todayDate.getDate() && date.getMonth() === todayDate.getMonth() && date.getFullYear() === todayDate.getFullYear());
           if (isToday) day.addClass('today');
@@ -164,32 +185,55 @@ body {
             );
           day.addClass([date.getYear(), date.getMonth()].join('_'));
 
-          $compile(day)(scope);
-          
+          // initialize with background color
           angular.element(day).css({
             'background-color': 'rgba(' + backgroundColor + ', 1)'
           });
 
+          $compile(day)(scope);
+          
         }
 
         function prependMonth() {
           var lines = calculateWeeks(firstDate);
-          for(var i = 0; i < lines; i++) {
-            if (i < lines - 1) {
-              prependWeek();
-            } else {
-              var week = prependWeek();
-              for (var j = scrollDates.length - 1; j >= 0; j--) {
-                scrollDates[j].pos = scrollDates[j].pos + week.offsetHeight*lines;
+          var dataLastDate = new Date(firstDate);
+          var dataFirstDate = new Date(firstDate);
+          dataFirstDate.setDate(dataLastDate.getDate()-(lines)*7);
+
+          // console.log(dataFirstDate);
+          // console.log(dataLastDate);
+
+          return $q.when(getEntryData(dataFirstDate, dataLastDate)).then(function (eData) {
+            for(var i = 0; i < lines; i++) {
+              if (i < lines - 1) {
+                prependWeek(eData);
+              } else {
+                var week = prependWeek(eData);
+                for (var j = scrollDates.length - 1; j >= 0; j--) {
+                  scrollDates[j].pos = scrollDates[j].pos + week.offsetHeight*lines;
+                }
+                var tempDate = new Date(firstDate);
+                tempDate.setDate(tempDate.getDate() + 7);
+                scrollDates.unshift({ month: tempDate.getMonth(), pos: week.offsetTop, year: tempDate.getYear() });
               }
-              var tempDate = new Date(firstDate);
-              tempDate.setDate(tempDate.getDate() + 7);
-              scrollDates.unshift({ month: tempDate.getMonth(), pos: week.offsetTop, year: tempDate.getYear() });
             }
-          }
+          });
         }
 
-        function prependWeek() {
+        function appendSomeWeeks() {
+          var weeks = 10;
+          var dataFirstDate = new Date(lastDate);
+          // console.log(dataFirstDate);
+          var dataLastDate = new Date(dataFirstDate);
+          dataLastDate.setDate(dataLastDate.getDate()+weeks*7);
+          // console.log(dataLastDate);
+          return $q.when(getEntryData(dataFirstDate, dataLastDate)).then(function (eData) {
+            // console.log(eData);
+            for(var i = 0; i < weeks; i++) appendWeek(eData);
+          });
+        }
+
+        function prependWeek(data) {
           var week = originalElement.insertRow(0);
 
           // move firstDate to the beginning of the previous week assuming it is already at the beginning of a week
@@ -197,7 +241,7 @@ body {
             firstDate.setDate(firstDate.getDate() - 1);
 
             var day = week.insertCell(0);
-            generateDay(day, firstDate);
+            generateDay(day, firstDate, data);
 
           } while (firstDate.getDay() !== firstDayOfWeek);
 
@@ -205,7 +249,7 @@ body {
         }
 
 
-        function appendWeek() {
+        function appendWeek(data) {
           var week = originalElement.insertRow(-1);
           // move lastDate to the end of the next week assuming it is already at the end of a week
           do {
@@ -215,7 +259,7 @@ body {
             }
 
             var day = week.insertCell(-1);
-            generateDay(day, lastDate);
+            generateDay(day, lastDate, data);
           } while (lastDate.getDay() !== lastDaysOfWeek[firstDayOfWeek]);
 
         }
@@ -248,32 +292,31 @@ body {
 
           scrollDates.push({ month: seedDate.getMonth(), pos: week.offsetTop, year: lastDate.getYear() });
 
-          // prepend the first month
-          prependMonth();
+          // prepend the first month and append enough weeks
+          $q.all([prependMonth(), appendSomeWeeks()]).then(function () {
+            
+            // scroll to today
+            originalParentElement.scrollTop = todayElement[0].offsetTop;
+            backgroundColor = getBackgroundColor();
 
-          // append enough weeks
-          for(var i = 1; i<=10; i++) appendWeek();
+            // let the watcher trigger before start colorizing
+            $timeout(colorizeMonth, 100);
 
-          // scroll to today
-          originalParentElement.scrollTop = todayElement[0].offsetTop;
-
-          backgroundColor = getBackgroundColor();
-
-          // let the watcher trigger before start colorizing
-          $timeout(colorizeMonth, 50);
+          });
+          
         }
 
         function getBackgroundColor() {
           var cssBackground;
           var todayElm = originalDocument.getElementsByClassName('today')[0];
           if (todayElm.currentStyle) {
-            cssBackground = todayElm.currentStyle.backgroundColor;
+            cssBackground = todayElm.currentStyle.backgroundColor || '';
           } else {
-            cssBackground = $window.getComputedStyle(todayElm)['backgroundColor'];
+            cssBackground = $window.getComputedStyle(todayElm)['backgroundColor'] || '';
           }
-          var color = cssBackground.match(/rgb\((\d{1,3}),\s(\d{1,3}),\s(\d{1,3})\)/).slice(1,4).join(',');
+          var color = cssBackground.match(/rgb\((\d{1,3}),\s(\d{1,3}),\s(\d{1,3})\)/);
           if (!color) return defaultBackgroundColor.join(',');
-          return color;
+          return color.slice(1,4).join(',');
         }
 
         todayDate = new Date();
@@ -466,7 +509,6 @@ body {
         // pull out the template to re-use.
         // Improvised ng-transclude.
         var template = container.html();
-        console.log(template);
 
         // wrap text nodes
         try {
