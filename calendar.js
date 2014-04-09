@@ -36,7 +36,7 @@ body {
 
   var calName = 'calendar';
 
-  angular.module('scrollingCalendar').directive(calName, function($window, $document, $timeout, $compile, calListeners, $parse, $q){
+  angular.module('scrollingCalendar').directive(calName, function($window, $document, $timeout, $compile, calListeners, $parse, $q, $http, $templateCache){
     // Runs during compile
 
     return {
@@ -54,7 +54,7 @@ body {
       // compile: function(tElement, tAttrs, function transclude(function(scope, cloneLinkingFn){ return function linking(scope, elm, attrs){}})),
       link: function($scope, element, attrs, controller) {
 
-        var todayElement, firstDate, lastDate, backgroundColor, currentMonth, nextMonth
+        var todayElement, firstDate, lastDate, backgroundColor, currentMonth, nextMonth, dayTemplate
           , originalElement = element[0]
           , originalDocument = $document[0]
           , parentElement = element.parent()
@@ -72,23 +72,6 @@ body {
         calListeners.setScope($scope);
         calListeners.onDrop($parse(attrs.calDrop));
 
-        $scope.currentScrollIndex = 0;
-        $scope.$watch('currentScrollIndex', function (newIndex) {
-          var nextM, nextY;
-          var month = scrollDates[newIndex].month;
-          var year = scrollDates[newIndex].year;
-          if (month === 11) {
-            nextM = 0;
-            nextY = year+1;
-          } else {
-            nextM = month + 1;
-            nextY = year;
-          }
-          currentMonth = angular.element(originalDocument.getElementsByClassName([year, month].join('_')));
-          nextMonth = angular.element(originalDocument.getElementsByClassName([nextY, nextM].join('_')));
-
-        });
-
         var getDataFn = $parse(attrs.calData);
 
         function getEntryData(firstDate, lastDate) {
@@ -96,6 +79,13 @@ body {
             $firstDate: firstDate,
             $lastDate: lastDate
           });
+        }
+
+        function getDayTemplate() {
+          return $http.get('../templates/day.html', { cache: $templateCache })
+            .success(function (template) {
+              dayTemplate = template;
+            });
         }
 
         function colorizeMonth() {
@@ -189,14 +179,7 @@ body {
           day = angular.element(day);
           if (!todayElement) todayElement = angular.element(day);
 
-          day.html(
-            '<span>{{ $date }} {{ $month }}</span>' +
-            '<div style="height: 100px" cal-day="event in $entries">' +
-              '<div style="background-color:red;text-align:left" cal-entry cal-entry-draggable="\'true\'">' +
-                '<span class="event">{{event.title}}</span>' +
-              '</div>' +
-            '</div>'
-            );
+          day.html(dayTemplate);
           day.addClass([date.getYear(), date.getMonth()].join('_'));
 
           // initialize with background color
@@ -314,6 +297,8 @@ body {
         
         function loadCalendarAroundDate(seedDate) {
 
+          parentElement.css('opacity', '0');
+
           var startDate = new Date(seedDate);
           var endDate = new Date(seedDate);
           var weeksToAdd = 10;
@@ -324,19 +309,19 @@ body {
           while(endDate.getDay() !== lastDayOfWeek) endDate.setDate(endDate.getDate() + 1);
           endDate.setDate(endDate.getDate()+(weeksToAdd-1)*7);
 
-          // console.log(startDate);
-          // console.log(endDate);
+          // async http operations
+          $q.all([getDayTemplate(), $q.when(getEntryData(startDate, endDate))])
 
-          $q.when(getEntryData(startDate, endDate))
-
-          .then(function (entryData) {
+          .then(function (resultArr) {
+            var entryData = resultArr[1];
+            // all this is synchronous
             completeFirstMonth(seedDate, entryData);
-            // prepend the first month and append enough weeks
+            prependMonth(entryData);
+            appendSomeWeeks(weeksToAdd, entryData);
+            
+            // watch for scroll index changes
+            initializeWatch();
 
-            return $q.all([prependMonth(entryData), appendSomeWeeks(weeksToAdd, entryData)]);
-          })
-
-          .then(function () {
             // scroll to today
             originalParentElement.scrollTop = todayElement[0].offsetTop;
             
@@ -344,9 +329,32 @@ body {
             backgroundColor = getBackgroundColor();
 
             // let the watcher trigger before start colorizing
-            $timeout(colorizeMonth, 50);
+            $timeout(function () {
+              colorizeMonth();
+              parentElement.css('opacity', '1');
+            }, 50);
+
           });
           
+        }
+
+        function initializeWatch() {
+          $scope.currentScrollIndex = 0;
+          $scope.$watch('currentScrollIndex', function (newIndex) {
+            var nextM, nextY;
+            var month = scrollDates[newIndex].month;
+            var year = scrollDates[newIndex].year;
+            if (month === 11) {
+              nextM = 0;
+              nextY = year+1;
+            } else {
+              nextM = month + 1;
+              nextY = year;
+            }
+            currentMonth = angular.element(originalDocument.getElementsByClassName([year, month].join('_')));
+            nextMonth = angular.element(originalDocument.getElementsByClassName([nextY, nextM].join('_')));
+
+          });
         }
 
         function getBackgroundColor() {
