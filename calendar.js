@@ -54,18 +54,20 @@ body {
       // compile: function(tElement, tAttrs, function transclude(function(scope, cloneLinkingFn){ return function linking(scope, elm, attrs){}})),
       link: function($scope, element, attrs, controller) {
 
-        var originalElement = element[0];
-        var originalDocument = $document[0];
-        var parentElement = element.parent();
-        var originalParentElement = parentElement[0];
-        var todayDate, todayElement, firstDate, lastDate, backgroundColor;
-        var scrollDates = [];
-        var defaultBackgroundColor = [233, 229, 236];
-        var offset = 0.5;
-        var speed = 2;
-        var firstDayOfWeek = 1;
-        var lastDaysOfWeek = [6, 0, 1, 2, 3, 4, 5];
-        var currentMonth, nextMonth;
+        var todayElement, firstDate, lastDate, backgroundColor, currentMonth, nextMonth
+          , originalElement = element[0]
+          , originalDocument = $document[0]
+          , parentElement = element.parent()
+          , originalParentElement = parentElement[0]
+          , scrollDates = []
+          , entryDateProp = 'dateBegin'
+          , defaultBackgroundColor = [233, 229, 236]
+          , offset = 0.5
+          , speed = 2
+          , firstDayOfWeek = 1
+          , mapLastDay = [6, 0, 1, 2, 3, 4, 5]
+          , lastDayOfWeek = mapLastDay[firstDayOfWeek];
+          
 
         calListeners.setScope($scope);
         calListeners.onDrop($parse(attrs.calDrop));
@@ -158,26 +160,38 @@ body {
 
         function generateDay(day, date, data) {
           var scope = $scope.$new();
-          scope.events = [];
+          scope.$entries = [];
           // console.log(date);
-          if (data && data.length) {
-            // TODO sort by date and build a nice algorithm that removes the entries
-            // and stops if the next element is already the next day
-            // attention! has to work both ways!
-            data.forEach(function (entry) {
-              if (date.getDate() === entry.dateBegin.getDate() && date.getMonth() === entry.dateBegin.getMonth() && date.getFullYear() === entry.dateBegin.getFullYear()) {
-                scope.events.push(entry);
-              }
-            });
+
+          // assign all the helpers
+          scope.$dateObj = new Date(date);
+          scope.$date = date.getDate();
+          scope.$day = date.getDay();
+          scope.$month = date.getMonth()+1;
+          scope.$isToday = sameDay(date, new Date());
+          scope.$isPastDate = date < new Date() && !sameDay(date, new Date());
+
+          function sameDay(date, compDate) {
+            return date.getDate() === compDate.getDate() && date.getMonth() === compDate.getMonth() && date.getFullYear() === compDate.getFullYear();
           }
+
+          // great algorithm to populate days :{} (entries have to be sorted by date!)
+          while (data && data.length) {
+            if (sameDay(data[0][entryDateProp], date)) {
+              scope.$entries.push(data.shift());
+            } else if (sameDay(data[data.length-1][entryDateProp], date)) {
+              scope.$entries.push(data.pop());
+            } else {
+              break;
+            }
+          }
+
           day = angular.element(day);
-          var isToday = (date.getDate() === todayDate.getDate() && date.getMonth() === todayDate.getMonth() && date.getFullYear() === todayDate.getFullYear());
-          if (isToday) day.addClass('today');
           if (!todayElement) todayElement = angular.element(day);
 
           day.html(
-            '<span>' + date.getDate() + ' ' + (date.getMonth()+1) + '</span>' +
-            '<div style="height: 100px" cal-day="event in events">' +
+            '<span>{{ $date }} {{ $month }}</span>' +
+            '<div style="height: 100px" cal-day="event in $entries">' +
               '<div style="background-color:red;text-align:left" cal-entry cal-entry-draggable="\'true\'">' +
                 '<span class="event">{{event.title}}</span>' +
               '</div>' +
@@ -194,7 +208,7 @@ body {
           
         }
 
-        function prependMonth() {
+        function prependMonth(entryData) {
           var lines = calculateWeeks(firstDate);
           var dataLastDate = new Date(firstDate);
           var dataFirstDate = new Date(firstDate);
@@ -202,6 +216,8 @@ body {
 
           // console.log(dataFirstDate);
           // console.log(dataLastDate);
+
+          entryData = entryData || getEntryData(dataFirstDate, dataLastDate);
 
           return $q.when(getEntryData(dataFirstDate, dataLastDate)).then(function (eData) {
             for(var i = 0; i < lines; i++) {
@@ -220,14 +236,15 @@ body {
           });
         }
 
-        function appendSomeWeeks() {
-          var weeks = 10;
+        function appendSomeWeeks(weeks, entryData) {
+          weeks = weeks || 10;
           var dataFirstDate = new Date(lastDate);
           // console.log(dataFirstDate);
           var dataLastDate = new Date(dataFirstDate);
           dataLastDate.setDate(dataLastDate.getDate()+weeks*7);
           // console.log(dataLastDate);
-          return $q.when(getEntryData(dataFirstDate, dataLastDate)).then(function (eData) {
+          entryData = entryData || getEntryData(dataFirstDate, dataLastDate);
+          return $q.when(entryData).then(function (eData) {
             // console.log(eData);
             for(var i = 0; i < weeks; i++) appendWeek(eData);
           });
@@ -260,7 +277,7 @@ body {
 
             var day = week.insertCell(-1);
             generateDay(day, lastDate, data);
-          } while (lastDate.getDay() !== lastDaysOfWeek[firstDayOfWeek]);
+          } while (lastDate.getDay() !== lastDayOfWeek);
 
         }
 
@@ -272,8 +289,8 @@ body {
           var weeks = Math.ceil((daysOfMonth - dayDiff) / 7);
           return weeks;
         }
-        
-        function loadCalendarAroundDate(seedDate) {
+
+        function completeFirstMonth(seedDate, entryData) {
           var startDate = new Date(seedDate);
           firstDate = new Date(seedDate);
 
@@ -284,31 +301,57 @@ body {
           lastDate = new Date(firstDate);
           lastDate.setDate(firstDate.getDate() - 1);
 
-          var week, wasFirst;
+          if (!entryData) throw new Error('Could not initialize calendar. Entry-data is missing for first month');
+          
+          var week;
 
           while (firstDate.getMonth() === startDate.getMonth() && firstDate.getDate() !== 1) {
-            week = prependWeek();
+            week = prependWeek(entryData);
           }
 
-          scrollDates.push({ month: seedDate.getMonth(), pos: week.offsetTop, year: lastDate.getYear() });
+          scrollDates.push({ month: lastDate.getMonth(), pos: week.offsetTop, year: lastDate.getYear() });
+        }
+        
+        function loadCalendarAroundDate(seedDate) {
 
-          // prepend the first month and append enough weeks
-          $q.all([prependMonth(), appendSomeWeeks()]).then(function () {
-            
+          var startDate = new Date(seedDate);
+          var endDate = new Date(seedDate);
+          var weeksToAdd = 10;
+
+          startDate.setMonth(startDate.getMonth()-1);
+          startDate.setDate(1);
+          while(startDate.getDay() !== firstDayOfWeek) startDate.setDate(startDate.getDate() - 1);
+          while(endDate.getDay() !== lastDayOfWeek) endDate.setDate(endDate.getDate() + 1);
+          endDate.setDate(endDate.getDate()+(weeksToAdd-1)*7);
+
+          // console.log(startDate);
+          // console.log(endDate);
+
+          $q.when(getEntryData(startDate, endDate))
+
+          .then(function (entryData) {
+            completeFirstMonth(seedDate, entryData);
+            // prepend the first month and append enough weeks
+
+            return $q.all([prependMonth(entryData), appendSomeWeeks(weeksToAdd, entryData)]);
+          })
+
+          .then(function () {
             // scroll to today
             originalParentElement.scrollTop = todayElement[0].offsetTop;
+            
+            // get cell background color from css
             backgroundColor = getBackgroundColor();
 
             // let the watcher trigger before start colorizing
-            $timeout(colorizeMonth, 100);
-
+            $timeout(colorizeMonth, 50);
           });
           
         }
 
         function getBackgroundColor() {
           var cssBackground;
-          var todayElm = originalDocument.getElementsByClassName('today')[0];
+          var todayElm = originalDocument.getElementsByClassName(firstDate.getYear() + '_' + firstDate.getMonth())[0];
           if (todayElm.currentStyle) {
             cssBackground = todayElm.currentStyle.backgroundColor || '';
           } else {
@@ -319,7 +362,6 @@ body {
           return color.slice(1,4).join(',');
         }
 
-        todayDate = new Date();
         loadCalendarAroundDate(new Date());
         parentElement.bind('scroll', refreshCalendar);
 
@@ -460,7 +502,7 @@ body {
             add(targetList, dragValue, dragKey);
           });
 
-          calListeners.drop(dragValue, targetScope.day, originScope.day);
+          calListeners.drop(dragValue, targetScope, originScope.$parent);
 
           $rootScope.$apply(function () {
             remove(dragOrigin, dragKey || dragOrigin.indexOf(dragValue));
@@ -542,10 +584,6 @@ body {
 
               // IE
               if (!supporsPointerEvents()) floaty.css('margin-top', '20px');
-
-              $document.bind('scroll', function (evt) {
-                console.log(evt);
-              });
 
               var floatyScope = scope.$new();
               floatyScope[valueIdentifier] = dragValue;

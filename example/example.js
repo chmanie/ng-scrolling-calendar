@@ -7,8 +7,14 @@
     $scope.getData = function (startDate, endDate) {
       var date = new Date(startDate);
       date.setDate(startDate.getDate()+10);
-      return [{ title: 'Blubb', dateBegin: date }];
+      return [{ title: 'Blubb', dateBegin: date }, { title: 'Today!!!', dateBegin: new Date() }];
     };
+
+    $scope.calDrop = function (item, targetDay, originDay) {
+      console.log(item);
+      console.log(targetDay, originDay);
+    };
+
   });
 
 })(angular);
