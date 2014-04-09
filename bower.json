@@ -1,0 +1,24 @@
+{
+  "name": "ng-scrolling-calendar",
+  "version": "0.1.0",
+  "homepage": "https://github.com/chmanie/ng-scrolling-calendar",
+  "authors": [
+    "Christian Maniewski <christian@maniewski.de>"
+  ],
+  "description": "inifite scrolling calendar directive for AngularJS. Includes drag&drop",
+  "main": "dist/calendar.js",
+  "keywords": [
+    "angular",
+    "angularjs",
+    "calendar",
+    "scrolling"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
