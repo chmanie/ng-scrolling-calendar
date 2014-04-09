@@ -82,7 +82,7 @@ body {
         }
 
         function getDayTemplate() {
-          return $http.get('day.html', { cache: $templateCache })
+          return $http.get(attrs.calDayTemplate, { cache: $templateCache })
             .success(function (template) {
               dayTemplate = template;
             });
@@ -349,7 +349,6 @@ body {
         function initializeWatch() {
           $scope.currentScrollIndex = 0;
           $scope.$watch('currentScrollIndex', function (newIndex) {
-            console.log(newIndex);
             var nextM, nextY;
             var month = scrollDates[newIndex].month;
             var year = scrollDates[newIndex].year;
