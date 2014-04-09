@@ -54,7 +54,7 @@ body {
       // compile: function(tElement, tAttrs, function transclude(function(scope, cloneLinkingFn){ return function linking(scope, elm, attrs){}})),
       link: function($scope, element, attrs, controller) {
 
-        var todayElement, firstDate, lastDate, backgroundColor, currentMonth, nextMonth, dayTemplate
+        var firstWeekElement, firstDate, lastDate, backgroundColor, currentMonth, nextMonth, dayTemplate
           , originalElement = element[0]
           , originalDocument = $document[0]
           , parentElement = element.parent()
@@ -82,7 +82,7 @@ body {
         }
 
         function getDayTemplate() {
-          return $http.get('../templates/day.html', { cache: $templateCache })
+          return $http.get('day.html', { cache: $templateCache })
             .success(function (template) {
               dayTemplate = template;
             });
@@ -177,7 +177,6 @@ body {
           }
 
           day = angular.element(day);
-          if (!todayElement) todayElement = angular.element(day);
 
           day.html(dayTemplate);
           day.addClass([date.getYear(), date.getMonth()].join('_'));
@@ -261,7 +260,7 @@ body {
             var day = week.insertCell(-1);
             generateDay(day, lastDate, data);
           } while (lastDate.getDay() !== lastDayOfWeek);
-
+          return week;
         }
 
         function calculateWeeks(date) {
@@ -292,7 +291,15 @@ body {
             week = prependWeek(entryData);
           }
 
-          scrollDates.push({ month: lastDate.getMonth(), pos: week.offsetTop, year: lastDate.getYear() });
+          if (week) {
+            scrollDates.push({ month: lastDate.getMonth(), pos: week.offsetTop, year: lastDate.getYear() });
+          } else {
+            // date already is in the first week of current month. just append one week
+            week = appendWeek(entryData);
+          }
+
+          if (!firstWeekElement) firstWeekElement = week;
+
         }
         
         function loadCalendarAroundDate(seedDate) {
@@ -314,16 +321,15 @@ body {
 
           .then(function (resultArr) {
             var entryData = resultArr[1];
-            // all this is synchronous
+            
+            // build up calendar
+            // all this is synchronous on initilisation
             completeFirstMonth(seedDate, entryData);
             prependMonth(entryData);
             appendSomeWeeks(weeksToAdd, entryData);
             
             // watch for scroll index changes
             initializeWatch();
-
-            // scroll to today
-            originalParentElement.scrollTop = todayElement[0].offsetTop;
             
             // get cell background color from css
             backgroundColor = getBackgroundColor();
@@ -331,8 +337,10 @@ body {
             // let the watcher trigger before start colorizing
             $timeout(function () {
               colorizeMonth();
+              // scroll to current month
+              originalParentElement.scrollTop = firstWeekElement.offsetTop;
               parentElement.css('opacity', '1');
-            }, 50);
+            }, 500);
 
           });
           
@@ -341,6 +349,7 @@ body {
         function initializeWatch() {
           $scope.currentScrollIndex = 0;
           $scope.$watch('currentScrollIndex', function (newIndex) {
+            console.log(newIndex);
             var nextM, nextY;
             var month = scrollDates[newIndex].month;
             var year = scrollDates[newIndex].year;

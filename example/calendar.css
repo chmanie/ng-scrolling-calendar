@@ -1,0 +1,42 @@
+body {
+	-webkit-backface-visibility:hidden;
+}
+
+body, td {
+	background: white;
+	color: black;
+	margin: 0;
+	font: 12px sans-serif;
+}
+
+table {
+	margin: 0 auto;
+	border-spacing: 0 0;
+	border-left: 1px solid black;
+	border-top: 1px solid black;
+}
+
+td {
+	border-right: 1px solid black;
+	border-bottom: 1px solid black;
+	padding: 3px 15px 20px 3px;
+	text-align: right;
+	vertical-align: top;
+	width: 120px;
+	height: 100px;
+	cursor: pointer;
+	background-color: rgb(233, 229, 236);
+}
+
+td span {
+	margin-right: -10px;
+}
+
+td.today {
+	border-left: 2px solid black;
+	border-top: 2px solid black;
+	border-right: 3px solid black;
+	border-bottom: 3px solid black;
+	padding-top: 1px;
+	width: 116px;
+}
