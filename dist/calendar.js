@@ -60,7 +60,7 @@ body {
           , parentElement = element.parent()
           , originalParentElement = parentElement[0]
           , scrollDates = []
-          , entryDateProp = 'dateBegin'
+          , entryDateKey = attrs.calDateKey
           , defaultBackgroundColor = [233, 229, 236]
           , offset = 0.5
           , speed = 2
@@ -167,9 +167,9 @@ body {
 
           // great algorithm to populate days :{} (entries have to be sorted by date!)
           while (data && data.length) {
-            if (sameDay(data[0][entryDateProp], date)) {
+            if (sameDay(new Date(data[0][entryDateKey]), date)) {
               scope.$entries.push(data.shift());
-            } else if (sameDay(data[data.length-1][entryDateProp], date)) {
+            } else if (sameDay(new Date(data[data.length-1][entryDateKey]), date)) {
               scope.$entries.push(data.pop());
             } else {
               break;
