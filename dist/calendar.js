@@ -1,10 +1,15 @@
 /*
-Important for fixing chrome artifacts:
+Important for fixing chrome scroll artifacts:
 
 body {
   -webkit-backface-visibility:hidden;
 }
 */
+
+// TODO: only append full months
+// trigger scroll points have to be in % relative to outer element (400px in this case)
+// two way binding of currentmonth object that shows displayed month
+// loading indicator on top and bottom of calendar
 
 
 (function (angular) {
@@ -54,7 +59,7 @@ body {
       // compile: function(tElement, tAttrs, function transclude(function(scope, cloneLinkingFn){ return function linking(scope, elm, attrs){}})),
       link: function($scope, element, attrs, controller) {
 
-        var firstWeekElement, firstDate, lastDate, backgroundColor, currentMonth, nextMonth, dayTemplate
+        var firstWeekElement, firstDate, lastDate, backgroundColor, currentMonth, nextMonth, dayTemplate, loading
           , originalElement = element[0]
           , originalDocument = $document[0]
           , parentElement = element.parent()
@@ -62,6 +67,7 @@ body {
           , scrollDates = []
           , entryDateKey = attrs.calDateKey
           , defaultBackgroundColor = [233, 229, 236]
+          // , defaultBackgroundColor = [255, 255, 255]
           , offset = 0.5
           , speed = 2
           , firstDayOfWeek = 1
@@ -90,6 +96,8 @@ body {
 
         function colorizeMonth() {
 
+          // requestAnimationFrame(colorizeMonth);
+
           if (scrollDates[$scope.currentScrollIndex+1] && originalParentElement.scrollTop > scrollDates[$scope.currentScrollIndex+1].pos) {
             $scope.$apply($scope.currentScrollIndex++);
           }
@@ -102,13 +110,14 @@ body {
             var difference = scrollDates[$scope.currentScrollIndex+1].pos - scrollDates[$scope.currentScrollIndex].pos;
             var pos = originalParentElement.scrollTop - scrollDates[$scope.currentScrollIndex].pos;
             var percentage = (pos/difference);
+            var backgroundOpacity = (percentage-offset)*speed/(1-offset);
             
-            if (percentage>offset && (percentage-offset)*speed/(1-offset) <= 1) {
+            if (percentage>offset && backgroundOpacity <= 1) {
               currentMonth.css({
-                'background-color': 'rgba(' + backgroundColor + ', ' + ((percentage-offset)*speed/(1-offset)) + ')'
+                'background-color': 'rgba(' + backgroundColor + ', ' + backgroundOpacity + ')'
               });
               nextMonth.css({
-                'background-color': 'rgba(' + backgroundColor + ', ' + (1-(percentage-offset)*speed/(1-offset)) + ')'
+                'background-color': 'rgba(' + backgroundColor + ', ' + (1-backgroundOpacity) + ')'
               });
             }
             if (percentage<offset) {
@@ -117,7 +126,7 @@ body {
               });
             }
 
-            if ((percentage-offset)*speed/(1-offset) > 1) {
+            if (backgroundOpacity > 1) {
               currentMonth.css({
                 'background-color': 'rgba(' + backgroundColor + ', ' + 1 + ')'
               });
@@ -129,23 +138,21 @@ body {
         }
 
         function expandCalendar() {
+          if (loading) return;
           if (originalParentElement.scrollTop < 200) {
             var oldScrollHeight = originalElement.scrollHeight;
+            loading = true;
             prependMonth().then(function () {
               originalParentElement.scrollTop = originalElement.scrollHeight - oldScrollHeight + 200;
+              loading = false;
             });
           }
-          else if (originalParentElement.scrollTop > originalElement.scrollHeight - originalParentElement.offsetHeight - 600) {
-            appendSomeWeeks();
+          else if ((originalElement.scrollHeight - originalParentElement.offsetHeight) - originalParentElement.scrollTop < 200) {
+            loading = true;
+            appendSomeWeeks(10).then(function () {
+              loading = false;
+            });
           }
-
-        }
-
-        function refreshCalendar() {
-
-          colorizeMonth();
-          expandCalendar();
-          
         }
 
         function generateDay(day, date, data) {
@@ -202,19 +209,20 @@ body {
           entryData = entryData || getEntryData(dataFirstDate, dataLastDate);
 
           return $q.when(getEntryData(dataFirstDate, dataLastDate)).then(function (eData) {
+            
+            var week;
+
             for(var i = 0; i < lines; i++) {
-              if (i < lines - 1) {
-                prependWeek(eData);
-              } else {
-                var week = prependWeek(eData);
-                for (var j = scrollDates.length - 1; j >= 0; j--) {
-                  scrollDates[j].pos = scrollDates[j].pos + week.offsetHeight*lines;
-                }
-                var tempDate = new Date(firstDate);
-                tempDate.setDate(tempDate.getDate() + 7);
-                scrollDates.unshift({ month: tempDate.getMonth(), pos: week.offsetTop, year: tempDate.getYear() });
-              }
+              week = prependWeek(eData);
             }
+
+            // shift all the other breakpoints
+            for (var j = scrollDates.length - 1; j >= 0; j--) {
+              scrollDates[j].pos = scrollDates[j].pos + week.offsetHeight*lines;
+            }
+            var tempDate = new Date(firstDate);
+            tempDate.setDate(tempDate.getDate() + 7);
+            scrollDates.unshift({ month: tempDate.getMonth(), pos: week.offsetTop, year: tempDate.getYear() });
           });
         }
 
@@ -337,9 +345,16 @@ body {
             // let the watcher trigger before start colorizing
             $timeout(function () {
               colorizeMonth();
+              // all kinds of performace tests
+              // requestAnimationFrame(colorizeMonth);
+              // setInterval(colorizeMonth, 10);
+
               // scroll to current month
               originalParentElement.scrollTop = firstWeekElement.offsetTop;
               parentElement.css('opacity', '1');
+              parentElement.bind('scroll', refreshCalendar);
+              intervalExpand();
+
             }, 500);
 
           });
@@ -378,8 +393,17 @@ body {
           return color.slice(1,4).join(',');
         }
 
+        function refreshCalendar() {
+          colorizeMonth();
+          // expandCalendar();
+        }
+
+        function intervalExpand() {
+          expandCalendar();
+          setTimeout(intervalExpand, 100);
+        }
+
         loadCalendarAroundDate(new Date());
-        parentElement.bind('scroll', refreshCalendar);
 
       }
     };
@@ -599,7 +623,7 @@ body {
               });
 
               // IE
-              if (!supporsPointerEvents()) floaty.css('margin-top', '20px');
+              if (!supportsPointerEvents()) floaty.css('margin-top', '20px');
 
               var floatyScope = scope.$new();
               floatyScope[valueIdentifier] = dragValue;
@@ -663,26 +687,56 @@ body {
       }
     };
 
-    function supporsPointerEvents() {
-      // from modernizr
-
-      var element = $document[0].createElement('x'),
-        documentElement = $document[0].documentElement,
-        getComputedStyle = $window.getComputedStyle,
-        supports;
-      if(!('pointerEvents' in element.style)){
-        return false;
-      }
-      element.style.pointerEvents = 'auto';
-      element.style.pointerEvents = 'x';
-      documentElement.appendChild(element);
-      supports = getComputedStyle &&
-        getComputedStyle(element, '').pointerEvents === 'auto';
-      documentElement.removeChild(element);
-      return !!supports;
-    }
-
   });
 
-
 })(angular);
+
+(function(window, document) {
+
+  'use strict';
+
+  function supportsPointerEvents() {
+    // from modernizr
+
+    var element = document.createElement('x'),
+      documentElement = document.documentElement,
+      getComputedStyle = window.getComputedStyle,
+      supports;
+    if(!('pointerEvents' in element.style)){
+      return false;
+    }
+    element.style.pointerEvents = 'auto';
+    element.style.pointerEvents = 'x';
+    documentElement.appendChild(element);
+    supports = getComputedStyle &&
+      getComputedStyle(element, '').pointerEvents === 'auto';
+    documentElement.removeChild(element);
+    return !!supports;
+  }
+
+  window.supportsPointerEvents = supportsPointerEvents;
+
+  // requestAnimationFrame Polyfill
+  // https://github.com/darius/requestAnimationFrame
+
+  if (!Date.now) Date.now = function() { return new Date().getTime(); };
+
+  var vendors = ['webkit', 'moz'];
+  for (var i = 0; i < vendors.length && !window.requestAnimationFrame; ++i) {
+    var vp = vendors[i];
+    window.requestAnimationFrame = window[vp+'RequestAnimationFrame'];
+    window.cancelAnimationFrame = (window[vp+'CancelAnimationFrame'] || window[vp+'CancelRequestAnimationFrame']);
+  }
+  if (/iP(ad|hone|od).*OS 6/.test(window.navigator.userAgent) ||
+    !window.requestAnimationFrame ||
+    !window.cancelAnimationFrame)
+  {
+    var lastTime = 0;
+    window.requestAnimationFrame = function(callback) {
+      var now = Date.now();
+      var nextTime = Math.max(lastTime + 16, now);
+      return setTimeout(function() { callback(lastTime = nextTime); }, nextTime - now);
+    };
+    window.cancelAnimationFrame = clearTimeout;
+  }
+}(window, document));
