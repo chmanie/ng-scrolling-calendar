@@ -17,10 +17,24 @@ body {
 
   // Let's add some nice helper methods to the Date object
 
-  Date.prototype.linesOfMonth = function () {
-    var daysOfMonth = new Date(this.getFullYear(), this.getMonth()+1, 0).getDate();
-    var dayDiff = daysOfMonth - this.getDate() + 1;
-    return Math.ceil((daysOfMonth - dayDiff) / 7);
+  Date.prototype.linesOfMonth = function (firstDayOfWeek) {
+    var daysOfMonth = this.daysOfMonth();
+    var offset = this.firstDayOffsets(firstDayOfWeek)[this.firstDateOfMonth().getDay()];
+    return Math.ceil((offset + daysOfMonth)/7);
+  };
+
+  Date.prototype.firstDayOffsets = function (firstDayOfWeek) {
+    firstDayOfWeek = firstDayOfWeek || 0;
+    var offsets = [0, 1, 2, 3, 4, 5, 6].map(function (day) {
+      day = day - firstDayOfWeek;
+      if (day < 0) day = 7 + day;
+      return day;
+    });
+    return offsets;
+  };
+
+  Date.prototype.daysOfMonth = function () {
+    return new Date(this.getFullYear(), this.getMonth()+1, 0).getDate();
   };
 
   Date.prototype.goToFirstDayOfWeek = function (firstDayOfWeek) {
@@ -35,12 +49,21 @@ body {
     return this;
   };
 
+  Date.prototype.firstDateOfMonth = function () {
+    return new Date(this.getFullYear(), this.getMonth(), 1);
+  };
+
   Date.prototype.isSameDay = function (date) {
     return this.getDate() === date.getDate() && this.getMonth() === date.getMonth() && this.getFullYear() === date.getFullYear();
   };
 
   Date.prototype.addDays = function (days) {
     this.setDate(this.getDate()+days);
+    return this;
+  };
+
+  Date.prototype.subtractDays = function (days) {
+    this.setDate(this.getDate()-days);
     return this;
   };
 
@@ -176,9 +199,9 @@ body {
               loading = false;
             });
           }
-          else if ((originalElement.scrollHeight - originalParentElement.offsetHeight) - originalParentElement.scrollTop < 200) {
+          else if ((originalElement.scrollHeight - originalParentElement.offsetHeight) - originalParentElement.scrollTop < 700) {
             loading = true;
-            appendSomeWeeks(10).then(function () {
+            appendMonth().then(function () {
               loading = false;
             });
           }
@@ -226,14 +249,10 @@ body {
           var tempDate = new Date(firstDate);
           var dayOfMonth = tempDate.getDate();
           if (dayOfMonth === 1) tempDate.setDate(0); // jump to correct month
-          var lines = tempDate.linesOfMonth();
+          var numWeeks = tempDate.linesOfMonth(firstDayOfWeek);
           
-          var dataLastDate = new Date(firstDate); // TODO: that is incorrect!
-          var dataFirstDate = new Date(firstDate); // TODO: that is incorrect!
-          dataFirstDate.setDate(dataLastDate.getDate()-(lines)*7); // TODO: that is incorrect!
-
-          // console.log(dataFirstDate);
-          // console.log(dataLastDate);
+          var dataLastDate = new Date(firstDate).subtractDays(1);
+          var dataFirstDate = new Date(firstDate).subtractDays((numWeeks-1)*7);
 
           entryData = entryData || getEntryData(dataFirstDate, dataLastDate);
 
@@ -241,16 +260,15 @@ body {
             
             var week;
 
-            for(var i = 0; i < lines; i++) {
+            for(var i = 0; i < numWeeks-1; i++) {
               week = prependWeek(eData);
             }
 
             // shift all the other breakpoints
             for (var j = scrollDates.length - 1; j >= 0; j--) {
-              scrollDates[j].pos = scrollDates[j].pos + week.offsetHeight*lines;
+              scrollDates[j].pos = scrollDates[j].pos + week.offsetHeight*(numWeeks-1);
             }
-            var tempDate = new Date(firstDate);
-            tempDate.setDate(tempDate.getDate() + 7);
+            var tempDate = (new Date(firstDate)).addDays(7);
             scrollDates.unshift({ month: tempDate.getMonth(), pos: week.offsetTop, year: tempDate.getYear() });
           });
         }
@@ -262,14 +280,14 @@ body {
             // we're on the last day of the current month
             tempDate.setDate(dayOfMonth + 1); // jump to correct month
           }
-          var numWeeks = tempDate.linesOfMonth();
+          var numWeeks = tempDate.linesOfMonth(firstDayOfWeek);
 
-          var dataFirstDate = (new Date(lastDate)).goToFirstDayOfWeek();
-          var dataLastDate = (new Date(dataFirstDate)).addDays(numWeeks*7);
+          var dataFirstDate = (new Date(lastDate)).goToFirstDayOfWeek(firstDayOfWeek);
+          var dataLastDate = (new Date(dataFirstDate)).addDays((numWeeks-1)*7-1);
 
           entryData = entryData || getEntryData(dataFirstDate, dataLastDate);
           return $q.when(entryData).then(function (eData) {
-            for(var i = 0; i < numWeeks; i++) appendWeek(eData);
+            for(var i = 0; i < numWeeks-1; i++) appendWeek(eData);
           });
 
         }
@@ -375,7 +393,8 @@ body {
             // all this is synchronous on initilization
             completeFirstMonth(seedDate, entryData);
             prependMonth(entryData);
-            appendSomeWeeks(weeksToAdd, entryData);
+            appendMonth(entryData);
+            // appendSomeWeeks(weeksToAdd, entryData);
             
             // watch for scroll index changes
             initializeWatch();
@@ -405,6 +424,7 @@ body {
         function initializeWatch() {
           $scope.currentScrollIndex = 0;
           $scope.$watch('currentScrollIndex', function (newIndex) {
+            console.log(newIndex);
             var nextM, nextY;
             var month = scrollDates[newIndex].month;
             var year = scrollDates[newIndex].year;
