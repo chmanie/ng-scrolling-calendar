@@ -394,7 +394,7 @@ body {
               originalParentElement.scrollTop = firstWeekElement.offsetTop;
               parentElement.css('opacity', '1');
               parentElement.bind('scroll', refreshCalendar);
-              // intervalExpand();
+              intervalExpand();
 
             }, 500);
 
@@ -439,10 +439,10 @@ body {
           // expandCalendar();
         }
 
-        // function intervalExpand() {
-        //   expandCalendar();
-        //   setTimeout(intervalExpand, 100);
-        // }
+        function intervalExpand() {
+          expandCalendar();
+          setTimeout(intervalExpand, 100);
+        }
 
         loadCalendarAroundDate(new Date());
 
@@ -678,6 +678,8 @@ body {
             });
           };
 
+          // console.log(elt);
+
           elt.bind('mousedown', function (ev) {
             
             originElement = angular.element(ev.target);
@@ -686,20 +688,19 @@ body {
 
             var canDrag = originScope.$eval(child.attr('cal-entry-draggable'));
 
-            if (dragValue || !canDrag) {
+            if (dragValue || !canDrag || originElement.attr('cal-day')) {
               return;
             }
 
             // find the right parent
             while (originElement.attr('cal-entry') === undefined) {
               originElement = originElement.parent();
+              if (originElement === body) return;
             }
 
             while (originScope[valueIdentifier] === undefined) {
               originScope = originScope.$parent;
-              if (!originScope) {
-                return;
-              }
+              if (!originScope) return;
             }
 
             dragValue = originScope[valueIdentifier];
