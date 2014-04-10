@@ -44,13 +44,28 @@ body {
   };
 
   Date.prototype.goToLastDayOfWeek = function (lastDayOfWeek) {
-    lastDayOfWeek = lastDayOfWeek || 6;
+    if (lastDayOfWeek === undefined || lastDayOfWeek === null) lastDayOfWeek = 6;
     while(this.getDay() !== lastDayOfWeek) this.setDate(this.getDate() + 1);
+    return this;
+  };
+
+  Date.prototype.goToFirstDayOfMonth = function () {
+    this.setDate(1);
+    return this;
+  };
+
+  Date.prototype.goToLastDayOfMonth = function () {
+    this.setMonth(this.getMonth()+1);
+    this.setDate(0);
     return this;
   };
 
   Date.prototype.firstDateOfMonth = function () {
     return new Date(this.getFullYear(), this.getMonth(), 1);
+  };
+
+  Date.prototype.lastDateOfMonth = function () {
+    return new Date(this.getFullYear(), this.getMonth()+1, 0);
   };
 
   Date.prototype.isSameDay = function (date) {
@@ -64,6 +79,16 @@ body {
 
   Date.prototype.subtractDays = function (days) {
     this.setDate(this.getDate()-days);
+    return this;
+  };
+
+  Date.prototype.addMonths = function (months) {
+    this.setMonth(this.getMonth()+months);
+    return this;
+  };
+
+  Date.prototype.subtractMonths = function (months) {
+    this.setMonth(this.getMonth()-months);
     return this;
   };
 
@@ -248,11 +273,18 @@ body {
         function prependMonth(entryData) {
           var tempDate = new Date(firstDate);
           var dayOfMonth = tempDate.getDate();
-          if (dayOfMonth === 1) tempDate.setDate(0); // jump to correct month
-          var numWeeks = tempDate.linesOfMonth(firstDayOfWeek);
+          var weekOffset = 0;
+          if (dayOfMonth === 1) {
+            tempDate.setDate(0); // jump to correct month
+            weekOffset = 1; // we have a week offset if the first day of month is firstDayOfWeek
+          }
+          var numWeeks = tempDate.linesOfMonth(firstDayOfWeek)+weekOffset;
           
           var dataLastDate = new Date(firstDate).subtractDays(1);
           var dataFirstDate = new Date(firstDate).subtractDays((numWeeks-1)*7);
+
+          // console.log(dataFirstDate);
+          // console.log(dataLastDate);
 
           entryData = entryData || getEntryData(dataFirstDate, dataLastDate);
 
@@ -276,34 +308,26 @@ body {
         function appendMonth(entryData) {
           var tempDate = new Date(lastDate);
           var dayOfMonth = tempDate.getDate();
+          var weekOffset = 0;
           if (dayOfMonth > 7) {
             // we're on the last day of the current month
             tempDate.setDate(dayOfMonth + 1); // jump to correct month
           }
           var numWeeks = tempDate.linesOfMonth(firstDayOfWeek);
 
+          // console.log('calculated ' + (numWeeks-1) + ' additional lines for ' + (tempDate.getMonth()+1));
+
           var dataFirstDate = (new Date(lastDate)).goToFirstDayOfWeek(firstDayOfWeek);
           var dataLastDate = (new Date(dataFirstDate)).addDays((numWeeks-1)*7-1);
+
+          // console.log(dataFirstDate);
+          // console.log(dataLastDate);
 
           entryData = entryData || getEntryData(dataFirstDate, dataLastDate);
           return $q.when(entryData).then(function (eData) {
             for(var i = 0; i < numWeeks-1; i++) appendWeek(eData);
           });
 
-        }
-
-        function appendSomeWeeks(weeks, entryData) {
-          weeks = weeks || 10;
-          var dataFirstDate = new Date(lastDate);
-          // console.log(dataFirstDate);
-          var dataLastDate = new Date(dataFirstDate);
-          dataLastDate.setDate(dataLastDate.getDate()+weeks*7);
-          // console.log(dataLastDate);
-          entryData = entryData || getEntryData(dataFirstDate, dataLastDate);
-          return $q.when(entryData).then(function (eData) {
-            // console.log(eData);
-            for(var i = 0; i < weeks; i++) appendWeek(eData);
-          });
         }
 
         function prependWeek(data) {
@@ -352,20 +376,23 @@ body {
 
           if (!entryData) throw new Error('Could not initialize calendar. Entry-data is missing for first month');
           
-          var week;
 
+          // first week
+          var week;
           while (firstDate.getMonth() === startDate.getMonth() && firstDate.getDate() !== 1) {
             week = prependWeek(entryData);
           }
-
           if (week) {
             scrollDates.push({ month: lastDate.getMonth(), pos: week.offsetTop, year: lastDate.getYear() });
           } else {
             // date already is in the first week of current month. just append one week
             week = appendWeek(entryData);
           }
-
           if (!firstWeekElement) firstWeekElement = week;
+
+          // next weeks
+          var lastDateOfMonth = (new Date(lastDate)).lastDateOfMonth();
+          while (lastDate < lastDateOfMonth) appendWeek(entryData);
 
         }
         
@@ -375,13 +402,12 @@ body {
 
           var startDate = new Date(seedDate);
           var endDate = new Date(seedDate);
-          var weeksToAdd = 10;
 
-          startDate.setMonth(startDate.getMonth()-1);
-          startDate.setDate(1);
-          while(startDate.getDay() !== firstDayOfWeek) startDate.setDate(startDate.getDate() - 1);
-          while(endDate.getDay() !== lastDayOfWeek) endDate.setDate(endDate.getDate() + 1);
-          endDate.setDate(endDate.getDate()+(weeksToAdd-1)*7);
+          startDate.subtractMonths(1).goToFirstDayOfMonth().goToFirstDayOfWeek(firstDayOfWeek);
+          endDate.addMonths(1).goToLastDayOfMonth().goToLastDayOfWeek(lastDayOfWeek);
+
+          console.log(startDate);
+          console.log(endDate);
 
           // async http operations
           $q.all([getDayTemplate(), $q.when(getEntryData(startDate, endDate))])
@@ -394,7 +420,6 @@ body {
             completeFirstMonth(seedDate, entryData);
             prependMonth(entryData);
             appendMonth(entryData);
-            // appendSomeWeeks(weeksToAdd, entryData);
             
             // watch for scroll index changes
             initializeWatch();
@@ -413,7 +438,7 @@ body {
               originalParentElement.scrollTop = firstWeekElement.offsetTop;
               parentElement.css('opacity', '1');
               parentElement.bind('scroll', refreshCalendar);
-              intervalExpand();
+              // intervalExpand();
 
             }, 500);
 
@@ -456,13 +481,13 @@ body {
 
         function refreshCalendar() {
           colorizeMonth();
-          // expandCalendar();
+          expandCalendar();
         }
 
-        function intervalExpand() {
-          expandCalendar();
-          setTimeout(intervalExpand, 100);
-        }
+        // function intervalExpand() {
+        //   expandCalendar();
+        //   setTimeout(intervalExpand, 100);
+        // }
 
         loadCalendarAroundDate(new Date());
 
