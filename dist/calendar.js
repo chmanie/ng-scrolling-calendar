@@ -15,6 +15,35 @@ body {
 (function (angular) {
   'use strict';
 
+  // Let's add some nice helper methods to the Date object
+
+  Date.prototype.linesOfMonth = function () {
+    var daysOfMonth = new Date(this.getFullYear(), this.getMonth()+1, 0).getDate();
+    var dayDiff = daysOfMonth - this.getDate() + 1;
+    return Math.ceil((daysOfMonth - dayDiff) / 7);
+  };
+
+  Date.prototype.goToFirstDayOfWeek = function (firstDayOfWeek) {
+    firstDayOfWeek = firstDayOfWeek || 0;
+    while(this.getDay() !== firstDayOfWeek) this.setDate(this.getDate() - 1);
+    return this;
+  };
+
+  Date.prototype.goToLastDayOfWeek = function (lastDayOfWeek) {
+    lastDayOfWeek = lastDayOfWeek || 6;
+    while(this.getDay() !== lastDayOfWeek) this.setDate(this.getDate() + 1);
+    return this;
+  };
+
+  Date.prototype.isSameDay = function (date) {
+    return this.getDate() === date.getDate() && this.getMonth() === date.getMonth() && this.getFullYear() === date.getFullYear();
+  };
+
+  Date.prototype.addDays = function (days) {
+    this.setDate(this.getDate()+days);
+    return this;
+  };
+
   angular.module('scrollingCalendar', []);
 
   angular.module('scrollingCalendar').factory('calListeners', function(){
@@ -165,18 +194,14 @@ body {
           scope.$date = date.getDate();
           scope.$day = date.getDay();
           scope.$month = date.getMonth()+1;
-          scope.$isToday = sameDay(date, new Date());
-          scope.$isPastDate = date < new Date() && !sameDay(date, new Date());
-
-          function sameDay(date, compDate) {
-            return date.getDate() === compDate.getDate() && date.getMonth() === compDate.getMonth() && date.getFullYear() === compDate.getFullYear();
-          }
+          scope.$isToday = date.isSameDay(new Date());
+          scope.$isPastDate = date < new Date() && !date.isSameDay(new Date());
 
           // great algorithm to populate days :{} (entries have to be sorted by date!)
           while (data && data.length) {
-            if (sameDay(new Date(data[0][entryDateKey]), date)) {
+            if (date.isSameDay(new Date(data[0][entryDateKey]))) {
               scope.$entries.push(data.shift());
-            } else if (sameDay(new Date(data[data.length-1][entryDateKey]), date)) {
+            } else if (date.isSameDay(new Date(data[data.length-1][entryDateKey]))) {
               scope.$entries.push(data.pop());
             } else {
               break;
@@ -198,10 +223,14 @@ body {
         }
 
         function prependMonth(entryData) {
-          var lines = calculateWeeks(firstDate);
-          var dataLastDate = new Date(firstDate);
-          var dataFirstDate = new Date(firstDate);
-          dataFirstDate.setDate(dataLastDate.getDate()-(lines)*7);
+          var tempDate = new Date(firstDate);
+          var dayOfMonth = tempDate.getDate();
+          if (dayOfMonth === 1) tempDate.setDate(0); // jump to correct month
+          var lines = tempDate.linesOfMonth();
+          
+          var dataLastDate = new Date(firstDate); // TODO: that is incorrect!
+          var dataFirstDate = new Date(firstDate); // TODO: that is incorrect!
+          dataFirstDate.setDate(dataLastDate.getDate()-(lines)*7); // TODO: that is incorrect!
 
           // console.log(dataFirstDate);
           // console.log(dataLastDate);
@@ -224,6 +253,25 @@ body {
             tempDate.setDate(tempDate.getDate() + 7);
             scrollDates.unshift({ month: tempDate.getMonth(), pos: week.offsetTop, year: tempDate.getYear() });
           });
+        }
+
+        function appendMonth(entryData) {
+          var tempDate = new Date(lastDate);
+          var dayOfMonth = tempDate.getDate();
+          if (dayOfMonth > 7) {
+            // we're on the last day of the current month
+            tempDate.setDate(dayOfMonth + 1); // jump to correct month
+          }
+          var numWeeks = tempDate.linesOfMonth();
+
+          var dataFirstDate = (new Date(lastDate)).goToFirstDayOfWeek();
+          var dataLastDate = (new Date(dataFirstDate)).addDays(numWeeks*7);
+
+          entryData = entryData || getEntryData(dataFirstDate, dataLastDate);
+          return $q.when(entryData).then(function (eData) {
+            for(var i = 0; i < numWeeks; i++) appendWeek(eData);
+          });
+
         }
 
         function appendSomeWeeks(weeks, entryData) {
@@ -271,14 +319,7 @@ body {
           return week;
         }
 
-        function calculateWeeks(date) {
-          var tempDate = new Date(date);
-          if (tempDate.getDate() === 1) tempDate.setDate(0); // jump to correct month
-          var daysOfMonth = new Date(tempDate.getFullYear(), tempDate.getMonth()+1, 0).getDate();
-          var dayDiff = daysOfMonth - tempDate.getDate() + 1;
-          var weeks = Math.ceil((daysOfMonth - dayDiff) / 7);
-          return weeks;
-        }
+
 
         function completeFirstMonth(seedDate, entryData) {
           var startDate = new Date(seedDate);
@@ -331,7 +372,7 @@ body {
             var entryData = resultArr[1];
             
             // build up calendar
-            // all this is synchronous on initilisation
+            // all this is synchronous on initilization
             completeFirstMonth(seedDate, entryData);
             prependMonth(entryData);
             appendSomeWeeks(weeksToAdd, entryData);
@@ -353,7 +394,7 @@ body {
               originalParentElement.scrollTop = firstWeekElement.offsetTop;
               parentElement.css('opacity', '1');
               parentElement.bind('scroll', refreshCalendar);
-              intervalExpand();
+              // intervalExpand();
 
             }, 500);
 
@@ -398,10 +439,10 @@ body {
           // expandCalendar();
         }
 
-        function intervalExpand() {
-          expandCalendar();
-          setTimeout(intervalExpand, 100);
-        }
+        // function intervalExpand() {
+        //   expandCalendar();
+        //   setTimeout(intervalExpand, 100);
+        // }
 
         loadCalendarAroundDate(new Date());
 
