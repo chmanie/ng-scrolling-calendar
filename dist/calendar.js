@@ -6,9 +6,6 @@ body {
 }
 */
 
-// TODO: only append full months
-// trigger scroll points have to be in % relative to outer element (400px in this case)
-// two way binding of currentmonth object that shows displayed month
 // loading indicator on top and bottom of calendar
 
 
@@ -125,7 +122,10 @@ body {
       // name: '',
       // priority: 1,
       // terminal: true,
-      // scope: {}, // {} = isolate, true = child, false/undefined = no change
+      scope: {
+        currentMonth: '=',
+        currentYear: '='
+      }, // {} = isolate, true = child, false/undefined = no change
       // controller: function($scope, $element, $attrs, $transclude) {},
       // require: 'ngModel', // Array = multiple requires, ? = optional, ^ = check parent elements
       restrict: 'A',
@@ -152,13 +152,13 @@ body {
           , lastDayOfWeek = mapLastDay[firstDayOfWeek];
           
 
-        calListeners.setScope($scope);
+        calListeners.setScope($scope.$parent);
         calListeners.onDrop($parse(attrs.calDrop));
 
         var getDataFn = $parse(attrs.calData);
 
         function getEntryData(firstDate, lastDate) {
-          return getDataFn($scope, {
+          return getDataFn($scope.$parent, {
             $firstDate: firstDate,
             $lastDate: lastDate
           });
@@ -406,8 +406,8 @@ body {
           startDate.subtractMonths(1).goToFirstDayOfMonth().goToFirstDayOfWeek(firstDayOfWeek);
           endDate.addMonths(1).goToLastDayOfMonth().goToLastDayOfWeek(lastDayOfWeek);
 
-          console.log(startDate);
-          console.log(endDate);
+          // console.log(startDate);
+          // console.log(endDate);
 
           // async http operations
           $q.all([getDayTemplate(), $q.when(getEntryData(startDate, endDate))])
@@ -451,16 +451,18 @@ body {
           $scope.$watch('currentScrollIndex', function (newIndex) {
             console.log(newIndex);
             var nextM, nextY;
-            var month = scrollDates[newIndex].month;
-            var year = scrollDates[newIndex].year;
-            if (month === 11) {
+
+            $scope.currentMonth = scrollDates[newIndex].month;
+            $scope.currentYear = scrollDates[newIndex].year;
+
+            if ($scope.currentMonth === 11) {
               nextM = 0;
-              nextY = year+1;
+              nextY = $scope.currentYear+1;
             } else {
-              nextM = month + 1;
-              nextY = year;
+              nextM = $scope.currentMonth + 1;
+              nextY = $scope.currentYear;
             }
-            currentMonth = angular.element(originalDocument.getElementsByClassName([year, month].join('_')));
+            currentMonth = angular.element(originalDocument.getElementsByClassName([$scope.currentYear, $scope.currentMonth].join('_')));
             nextMonth = angular.element(originalDocument.getElementsByClassName([nextY, nextM].join('_')));
 
           });
