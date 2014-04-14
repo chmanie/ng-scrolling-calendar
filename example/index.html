@@ -8,7 +8,7 @@
 </head>
 <body ng-app="scrollingCalendarExample">
   <div ng-controller="ExampleCtrl">
-    <div style="height:400px;width:100%;overflow-y:scroll">
+    <div style="height:600px;width:100%;overflow-y:scroll">
       <table calendar cal-data="getData($firstDate, $lastDate)" cal-drop="calDrop($item, $targetDay, $originDay)" cal-day-template="day.html" cal-date-key="dateBegin" current-month="currentMonth" current-year="currentYear"></table>
     </div>
     <div>{{ currentMonth }}</div>
