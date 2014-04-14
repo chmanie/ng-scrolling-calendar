@@ -17,6 +17,8 @@ table {
 }
 
 td {
+	/*-webkit-transition: all 0.2s;
+	transition: all 0.2s;*/
 	border-right: 1px solid black;
 	border-bottom: 1px solid black;
 	padding: 3px 15px 20px 3px;

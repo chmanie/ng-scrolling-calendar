@@ -136,7 +136,8 @@ body {
       // compile: function(tElement, tAttrs, function transclude(function(scope, cloneLinkingFn){ return function linking(scope, elm, attrs){}})),
       link: function($scope, element, attrs, controller) {
 
-        var firstWeekElement, firstDate, lastDate, backgroundColor, currentMonth, nextMonth, dayTemplate, loading
+        var firstWeekElement, firstDate, lastDate, backgroundColor, currentMonthElm, nextMonthElm, dayTemplate, loading
+          , currentScrollMonth, currentScrollYear, nextScrollMonth, nextScrollYear
           , currentScrollIndex = 0
           , lastScrollIndex
           , originalElement = element[0]
@@ -186,23 +187,22 @@ body {
           }
 
           if (currentScrollIndex !== lastScrollIndex) {
-            var nextM, nextY;
 
-            console.log(currentScrollIndex);
             lastScrollIndex = currentScrollIndex;
+            // console.log(currentScrollIndex);
 
-            $scope.currentMonth = scrollDates[currentScrollIndex].month;
-            $scope.currentYear = scrollDates[currentScrollIndex].year;
+            currentScrollMonth = scrollDates[currentScrollIndex].month;
+            currentScrollYear = scrollDates[currentScrollIndex].year;
             
-            if ($scope.currentMonth === 11) {
-              nextM = 0;
-              nextY = $scope.currentYear+1;
+            if (currentScrollMonth === 11) {
+              nextScrollMonth = 0;
+              nextScrollYear = currentScrollYear+1;
             } else {
-              nextM = $scope.currentMonth + 1;
-              nextY = $scope.currentYear;
+              nextScrollMonth = currentScrollMonth + 1;
+              nextScrollYear = currentScrollYear;
             }
-            currentMonth = angular.element(originalDocument.getElementsByClassName([$scope.currentYear, $scope.currentMonth].join('_')));
-            nextMonth = angular.element(originalDocument.getElementsByClassName([nextY, nextM].join('_')));
+            currentMonthElm = angular.element(originalDocument.getElementsByClassName([currentScrollYear, currentScrollMonth].join('_')));
+            nextMonthElm = angular.element(originalDocument.getElementsByClassName([nextScrollYear, nextScrollMonth].join('_')));
 
           }
 
@@ -210,33 +210,29 @@ body {
             var difference = scrollDates[currentScrollIndex+1].pos - scrollDates[currentScrollIndex].pos;
             var pos = originalParentElement.scrollTop - scrollDates[currentScrollIndex].pos;
             var percentage = (pos/difference);
-            var backgroundOpacity = (percentage-offset)*speed/(1-offset);
+            // var backgroundOpacity = (percentage-offset)*speed/(1-offset);
+            var backgroundOpacity = 1;
 
             // console.log(backgroundOpacity);
             // console.log(percentage);
             
-            if (percentage>offset && backgroundOpacity <= 1) {
-              currentMonth.css({
+            if (percentage > offset) {
+              currentMonthElm.css({
                 'background-color': 'rgba(' + backgroundColor + ', ' + backgroundOpacity + ')'
               });
-              nextMonth.css({
+              nextMonthElm.css({
                 'background-color': 'rgba(' + backgroundColor + ', ' + (1-backgroundOpacity) + ')'
               });
-              console.log('set nextMonth to ' + (1-backgroundOpacity));
+              $scope.$apply($scope.currentMonth = nextScrollMonth);
             }
-            // if (percentage<offset) {
-            //   currentMonth.css({
-            //     'background-color': 'rgba(' + backgroundColor + ', 0)'
-            //   });
-            // }
-
-            if (backgroundOpacity > 1) {
-              currentMonth.css({
-                'background-color': 'rgba(' + backgroundColor + ', ' + 1 + ')'
-              });
-              nextMonth.css({
+            else {
+              currentMonthElm.css({
                 'background-color': 'rgba(' + backgroundColor + ', ' + 0 + ')'
               });
+              nextMonthElm.css({
+                'background-color': 'rgba(' + backgroundColor + ', ' + 1 + ')'
+              });
+              $scope.$apply($scope.currentMonth = currentScrollMonth);
             }
           }
         }
@@ -271,6 +267,7 @@ body {
           scope.$month = date.getMonth()+1;
           scope.$isToday = date.isSameDay(new Date());
           scope.$isPastDate = date < new Date() && !date.isSameDay(new Date());
+          scope.showMonthTitle = date.getDay() === lastDayOfWeek && date.getDate() <= 7;
 
           // great algorithm to populate days :{} (entries have to be sorted by date!)
           while (data && data.length) {
@@ -457,7 +454,7 @@ body {
 
             // let the watcher trigger before start colorizing
             $timeout(function () {
-              colorizeMonth();
+              // colorizeMonth();
               // all kinds of performace tests
               // requestAnimationFrame(colorizeMonth);
               // setInterval(colorizeMonth, 10);
@@ -534,6 +531,7 @@ body {
         }
 
         function refreshCalendar() {
+          // colorizeMonth();
           requestAnimationFrame(colorizeMonth);
           expandCalendar();
         }

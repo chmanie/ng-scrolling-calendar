@@ -1,4 +1,5 @@
 <span>{{ $date }} {{ $month }}</span>
+<span ng-if="showMonthTitle">März</span>
   <div style="height: 100px" cal-day="event in $entries">
   <div style="background-color:red;text-align:left" cal-entry cal-entry-draggable="'true'">
     <span class="event">{{event.title}}</span>
