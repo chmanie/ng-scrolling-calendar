@@ -124,7 +124,8 @@ body {
       // terminal: true,
       scope: {
         currentMonth: '=',
-        currentYear: '='
+        currentYear: '=',
+        calInterface: '='
       }, // {} = isolate, true = child, false/undefined = no change
       // controller: function($scope, $element, $attrs, $transclude) {},
       // require: 'ngModel', // Array = multiple requires, ? = optional, ^ = check parent elements
@@ -136,10 +137,12 @@ body {
       // compile: function(tElement, tAttrs, function transclude(function(scope, cloneLinkingFn){ return function linking(scope, elm, attrs){}})),
       link: function($scope, element, attrs, controller) {
 
-        var firstWeekElement, firstDate, lastDate, backgroundColor, currentMonthElm, nextMonthElm, dayTemplate, loading
+        var firstWeekElement, firstDate, lastDate, backgroundColor, dayTemplate, loading
+          , currentMonthElm, nextMonthElm
           , currentScrollMonth, currentScrollYear, nextScrollMonth, nextScrollYear
-          , currentScrollIndex = 0
+          , currentScrollIndex
           , lastScrollIndex
+          , activeScrollIndex
           , originalElement = element[0]
           , originalDocument = $document[0]
           , parentElement = element.parent()
@@ -150,6 +153,7 @@ body {
           // , defaultBackgroundColor = [255, 255, 255]
           , offset = 0.5
           , speed = 2
+          , topScrollTrigger = 200
           , firstDayOfWeek = 1
           , mapLastDay = [6, 0, 1, 2, 3, 4, 5]
           , lastDayOfWeek = mapLastDay[firstDayOfWeek];
@@ -176,8 +180,6 @@ body {
 
         function colorizeMonth() {
 
-          // requestAnimationFrame(colorizeMonth);
-
           if (scrollDates[currentScrollIndex+1] && originalParentElement.scrollTop > scrollDates[currentScrollIndex+1].pos) {
             currentScrollIndex++;
           }
@@ -189,7 +191,6 @@ body {
           if (currentScrollIndex !== lastScrollIndex) {
 
             lastScrollIndex = currentScrollIndex;
-            // console.log(currentScrollIndex);
 
             currentScrollMonth = scrollDates[currentScrollIndex].month;
             currentScrollYear = scrollDates[currentScrollIndex].year;
@@ -211,19 +212,19 @@ body {
             var pos = originalParentElement.scrollTop - scrollDates[currentScrollIndex].pos;
             var percentage = (pos/difference);
             // var backgroundOpacity = (percentage-offset)*speed/(1-offset);
-            var backgroundOpacity = 1;
 
             // console.log(backgroundOpacity);
             // console.log(percentage);
             
             if (percentage > offset) {
               currentMonthElm.css({
-                'background-color': 'rgba(' + backgroundColor + ', ' + backgroundOpacity + ')'
+                'background-color': 'rgba(' + backgroundColor + ', ' + 1 + ')'
               });
               nextMonthElm.css({
-                'background-color': 'rgba(' + backgroundColor + ', ' + (1-backgroundOpacity) + ')'
+                'background-color': 'rgba(' + backgroundColor + ', ' + 0 + ')'
               });
-              $scope.$apply($scope.currentMonth = nextScrollMonth);
+              activeScrollIndex = currentScrollIndex+1;
+              $scope.currentMonth = nextScrollMonth;
             }
             else {
               currentMonthElm.css({
@@ -232,24 +233,25 @@ body {
               nextMonthElm.css({
                 'background-color': 'rgba(' + backgroundColor + ', ' + 1 + ')'
               });
-              $scope.$apply($scope.currentMonth = currentScrollMonth);
+              activeScrollIndex = currentScrollIndex;
+              $scope.currentMonth = currentScrollMonth;
             }
           }
         }
 
         function expandCalendar() {
           if (loading) return;
-          if (originalParentElement.scrollTop < 200) {
+          if (originalParentElement.scrollTop < topScrollTrigger) {
             var oldScrollHeight = originalElement.scrollHeight;
             loading = true;
-            prependMonth().then(function () {
-              originalParentElement.scrollTop = originalElement.scrollHeight - oldScrollHeight + 200;
+            return prependMonth().then(function () {
+              originalParentElement.scrollTop = originalElement.scrollHeight - oldScrollHeight + topScrollTrigger;
               loading = false;
             });
           }
           else if ((originalElement.scrollHeight - originalParentElement.offsetHeight) - originalParentElement.scrollTop < 700) {
             loading = true;
-            appendMonth().then(function () {
+            return appendMonth().then(function () {
               loading = false;
             });
           }
@@ -332,7 +334,6 @@ body {
         function appendMonth(entryData) {
           var tempDate = new Date(lastDate);
           var dayOfMonth = tempDate.getDate();
-          var weekOffset = 0;
           if (dayOfMonth > 7) {
             // we're on the last day of the current month
             tempDate.setDate(dayOfMonth + 1); // jump to correct month
@@ -359,7 +360,7 @@ body {
 
           // move firstDate to the beginning of the previous week assuming it is already at the beginning of a week
           do {
-            firstDate.setDate(firstDate.getDate() - 1);
+            firstDate.subtractDays(1);
 
             var day = week.insertCell(0);
             generateDay(day, firstDate, data);
@@ -374,11 +375,10 @@ body {
           var week = originalElement.insertRow(-1);
           // move lastDate to the end of the next week assuming it is already at the end of a week
           do {
-            lastDate.setDate(lastDate.getDate() + 1);
+            lastDate.addDays(1);
             if(lastDate.getDate() === 1) {
               scrollDates.push({ month: lastDate.getMonth(), pos: week.offsetTop, year: lastDate.getYear() });
             }
-
             var day = week.insertCell(-1);
             generateDay(day, lastDate, data);
           } while (lastDate.getDay() !== lastDayOfWeek);
@@ -422,7 +422,11 @@ body {
         
         function loadCalendarAroundDate(seedDate) {
 
+          if(!seedDate) throw new Error('seedDate is required!');
+
           parentElement.css('visibility', 'hidden');
+
+          element.after('<div style="height:1200px"></div>');
 
           var startDate = new Date(seedDate);
           var endDate = new Date(seedDate);
@@ -434,88 +438,44 @@ body {
           // console.log(endDate);
 
           // async http operations
-          $q.all([getDayTemplate(), $q.when(getEntryData(startDate, endDate))])
+          $q.all([
+            getDayTemplate(),
+            $q.when(getEntryData(startDate, endDate))
+          ])
 
           .then(function (resultArr) {
             var entryData = resultArr[1];
             
-            // build up calendar
-            // all this is synchronous on initilization
             completeFirstMonth(seedDate, entryData);
-            prependMonth(entryData);
-            appendMonth(entryData);
-            
-            // watch for scroll index changes
-            // initializeWatch();
-            // watchScrollIndex();
-            
+
+            // build up calendar
+            return $q.all([
+              prependMonth(entryData),
+              appendMonth(entryData)
+            ]);
+
+          })
+          .then(function () {
             // get cell background color from css
             backgroundColor = getBackgroundColor();
-
-            // let the watcher trigger before start colorizing
+            // scroll to current month
+            originalParentElement.scrollTop = firstWeekElement.offsetTop;
+            currentScrollIndex = 1;
             $timeout(function () {
-              // colorizeMonth();
-              // all kinds of performace tests
-              // requestAnimationFrame(colorizeMonth);
-              // setInterval(colorizeMonth, 10);
-
-              // scroll to current month
-              originalParentElement.scrollTop = firstWeekElement.offsetTop;
+              refreshCalendar();
               parentElement.css('visibility', 'visible');
-              parentElement.bind('scroll', refreshCalendar);
-              // intervalExpand();
-
-            }, 500);
-
+              parentElement.bind('mousewheel', refreshCalendar);
+            });
+            
+            // parentElement.bind('scroll', refreshCalendar);
+            // parentElement.bind('mousewheel', refreshCalendar);
+            // parentElement.bind('mousewheel', function () {
+            //   console.log(originalParentElement.scrollTop);
+            // });
+            
           });
           
         }
-
-        // function watchScrollIndex() {
-        //   if (currentScrollIndex !== lastScrollIndex) {
-        //     var nextM, nextY;
-
-        //     console.log(currentScrollIndex);
-        //     lastScrollIndex = currentScrollIndex;
-
-        //     $scope.currentMonth = scrollDates[currentScrollIndex].month;
-        //     $scope.currentYear = scrollDates[currentScrollIndex].year;
-            
-        //     if ($scope.currentMonth === 11) {
-        //       nextM = 0;
-        //       nextY = $scope.currentYear+1;
-        //     } else {
-        //       nextM = $scope.currentMonth + 1;
-        //       nextY = $scope.currentYear;
-        //     }
-        //     currentMonth = angular.element(originalDocument.getElementsByClassName([$scope.currentYear, $scope.currentMonth].join('_')));
-        //     nextMonth = angular.element(originalDocument.getElementsByClassName([nextY, nextM].join('_')));
-
-        //   }
-        //   setTimeout(watchScrollIndex, 100);
-        // }
-
-        // function initializeWatch() {
-        //   $scope.currentScrollIndex = 0;
-        //   $scope.$watch('currentScrollIndex', function (newIndex) {
-        //     console.log(newIndex);
-        //     var nextM, nextY;
-
-        //     $scope.currentMonth = scrollDates[newIndex].month;
-        //     $scope.currentYear = scrollDates[newIndex].year;
-
-        //     if ($scope.currentMonth === 11) {
-        //       nextM = 0;
-        //       nextY = $scope.currentYear+1;
-        //     } else {
-        //       nextM = $scope.currentMonth + 1;
-        //       nextY = $scope.currentYear;
-        //     }
-        //     currentMonth = angular.element(originalDocument.getElementsByClassName([$scope.currentYear, $scope.currentMonth].join('_')));
-        //     nextMonth = angular.element(originalDocument.getElementsByClassName([nextY, nextM].join('_')));
-
-        //   });
-        // }
 
         function getBackgroundColor() {
           var cssBackground;
@@ -534,7 +494,39 @@ body {
           // colorizeMonth();
           requestAnimationFrame(colorizeMonth);
           expandCalendar();
+          
         }
+
+        $scope.calInterface = {
+          scrollToNextMonth: function () {
+            originalParentElement.scrollTop = scrollDates[activeScrollIndex+1].pos;
+            if (!scrollDates[activeScrollIndex+2]) {
+              appendMonth().then(function () {
+                if (!scrollDates[activeScrollIndex+2]) {
+                  // in very rare cases we need to add two months
+                  appendMonth();
+                }
+              });
+            }
+            // set currentMonth after current $digest() cycle
+            $timeout(function () {
+              colorizeMonth();
+            });
+          },
+          scrollToPrevMonth: function () {
+            var oldScrollHeight = originalElement.scrollHeight;
+            if (!scrollDates[activeScrollIndex-2]) {
+              prependMonth().then(function () {
+                originalParentElement.scrollTop = originalElement.scrollHeight - oldScrollHeight;
+              });
+            }
+            originalParentElement.scrollTop = scrollDates[activeScrollIndex-1].pos;
+            // set currentMonth after current $digest() cycle
+            $timeout(function () {
+              colorizeMonth();
+            });
+          }
+        };
 
         // function intervalExpand() {
         //   expandCalendar();
