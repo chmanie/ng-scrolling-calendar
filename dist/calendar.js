@@ -254,7 +254,8 @@ Don't: do anything more than get a scroll offset in the scroll event handler
             var oldScrollHeight = originalElement.scrollHeight;
             loading = true;
             return prependMonth().then(function () {
-              originalParentElement.scrollTop = originalElement.scrollHeight - oldScrollHeight + topScrollTrigger;
+              originalParentElement.scrollTop = originalParentElement.scrollTop + (originalElement.scrollHeight - oldScrollHeight);
+              // originalParentElement.scrollTop = originalElement.scrollHeight - oldScrollHeight + topScrollTrigger;
               loading = false;
             });
           }
@@ -506,17 +507,50 @@ Don't: do anything more than get a scroll offset in the scroll event handler
           
         }
 
+        function smoothScrollTo(pos) {
+
+          // console.log(originalParentElement.scrollTop);
+
+          var deferred = $q.defer();
+          var startTime = new Date();
+          var originalPos = originalParentElement.scrollTop;
+
+          function curve(x) {
+            return (x < 0.5) ? (4*x*x*x) : (1 - 4*(1-x)*(1-x)*(1-x));
+          }
+
+          function scroll() {
+            if (originalPos > pos && originalParentElement.scrollTop <= pos) {
+              deferred.resolve(originalParentElement.scrollTop);
+              return;
+            } else if (originalPos < pos && originalParentElement.scrollTop >= pos) {
+              deferred.resolve(originalParentElement.scrollTop);
+              return;
+            }
+            var percent = (new Date() - startTime) / 1000;
+            colorizeMonth();
+            requestAnimationFrame(scroll);
+            originalParentElement.scrollTop = originalParentElement.scrollTop - (originalParentElement.scrollTop - pos) * curve(percent);
+          }
+
+          scroll();
+
+          return deferred.promise;
+
+        }
+
         $scope.calInterface = {
           scrollToNextMonth: function () {
-            originalParentElement.scrollTop = scrollDates[activeScrollIndex+1].pos;
-            if (!scrollDates[activeScrollIndex+2]) {
-              appendMonth().then(function () {
-                if (!scrollDates[activeScrollIndex+2]) {
-                  // in very rare cases we need to add two months
-                  appendMonth();
-                }
-              });
-            }
+            smoothScrollTo(scrollDates[activeScrollIndex+1].pos).then(function () {
+              if (!scrollDates[activeScrollIndex+2]) {
+                appendMonth().then(function () {
+                  if (!scrollDates[activeScrollIndex+2]) {
+                    // in very rare cases we need to add two months
+                    appendMonth();
+                  }
+                });
+              }
+            });
             // set currentMonth after current $digest() cycle
             $timeout(function () {
               colorizeMonth();
@@ -524,15 +558,14 @@ Don't: do anything more than get a scroll offset in the scroll event handler
           },
           scrollToPrevMonth: function () {
             var oldScrollHeight = originalElement.scrollHeight;
-            if (!scrollDates[activeScrollIndex-2]) {
-              prependMonth().then(function () {
-                originalParentElement.scrollTop = originalElement.scrollHeight - oldScrollHeight;
-              });
-            }
-            originalParentElement.scrollTop = scrollDates[activeScrollIndex-1].pos;
-            // set currentMonth after current $digest() cycle
-            $timeout(function () {
-              colorizeMonth();
+            smoothScrollTo(scrollDates[activeScrollIndex-1].pos).then(function () {
+              if (!scrollDates[activeScrollIndex-2]) {
+                prependMonth().then(function () {
+                  colorizeMonth();
+                  originalParentElement.scrollTop = originalParentElement.scrollTop + (originalElement.scrollHeight - oldScrollHeight + 1);
+                  colorizeMonth();
+                });
+              }
             });
           }
         };
