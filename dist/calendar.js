@@ -8,6 +8,15 @@ body {
 
 // loading indicator on top and bottom of calendar
 
+/*
+Do: separate scroll handler from rAF render loop
+Do: minimize layout cost in render loop.  (Use textContent rather than innerHTML. Use overflow:hidden to keep layout boundary close)
+Do: retain inertial scrolling. 
+Do: GPU accelerate the layer
+Don't: have a hover effect that can trigger during scroll
+Don't: do anything more than get a scroll offset in the scroll event handler
+ */
+
 
 (function (angular) {
   'use strict';
@@ -743,9 +752,6 @@ body {
           var spawnFloaty = function () {
             scope.$apply(function () {
               floaty = template.clone();
-              // floaty.bind('scroll', function (evt) {
-              //   console.log(evt);
-              // });
               floaty.css({
                 'position': 'fixed',
                 'z-index': '99999',
