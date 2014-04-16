@@ -195,6 +195,7 @@ Don't: do anything more than get a scroll offset in the scroll event handler
 
           if (scrollDates[currentScrollIndex] && originalParentElement.scrollTop < scrollDates[currentScrollIndex].pos) {
             currentScrollIndex--;
+
           }
 
           if (currentScrollIndex !== lastScrollIndex) {
@@ -203,6 +204,11 @@ Don't: do anything more than get a scroll offset in the scroll event handler
 
             currentScrollMonth = scrollDates[currentScrollIndex].month;
             currentScrollYear = scrollDates[currentScrollIndex].year;
+
+            $scope.$apply(function () {
+              $scope.currentMonth = currentScrollMonth;
+              $scope.currentYear = currentScrollYear;
+            });
             
             if (currentScrollMonth === 11) {
               nextScrollMonth = 0;
@@ -233,7 +239,6 @@ Don't: do anything more than get a scroll offset in the scroll event handler
                 'background-color': 'rgba(' + backgroundColor + ', ' + 0 + ')'
               });
               activeScrollIndex = currentScrollIndex+1;
-              $scope.currentMonth = nextScrollMonth;
             }
             else {
               currentMonthElm.css({
@@ -243,7 +248,6 @@ Don't: do anything more than get a scroll offset in the scroll event handler
                 'background-color': 'rgba(' + backgroundColor + ', ' + 1 + ')'
               });
               activeScrollIndex = currentScrollIndex;
-              $scope.currentMonth = currentScrollMonth;
             }
           }
         }
@@ -567,6 +571,9 @@ Don't: do anything more than get a scroll offset in the scroll event handler
                 });
               }
             });
+          },
+          scrollToToday: function () {
+            smoothScrollTo(firstWeekElement.offsetTop);
           }
         };
 

@@ -10,9 +10,10 @@
   <div ng-controller="ExampleCtrl">
     <div>
       <button ng-click="calInterface.scrollToNextMonth()">Next</button>
+      <button ng-click="calInterface.scrollToToday()">Today</button>
       <button ng-click="calInterface.scrollToPrevMonth()">Prev</button>
     </div>
-    <div style="height:600px;width:100%;overflow-y:scroll">
+    <div style="height:400px;width:100%;overflow-y:scroll">
       <table calendar cal-data="getData($firstDate, $lastDate)" cal-drop="calDrop($item, $targetDay, $originDay)" cal-day-template="day.html" cal-date-key="dateBegin" current-month="currentMonth" current-year="currentYear" cal-interface="calInterface"></table>
     </div>
     <div>{{ currentMonth }}</div>
