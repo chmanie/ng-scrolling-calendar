@@ -767,52 +767,59 @@ body {
             });
           };
 
-          // console.log(elt);
-
           elt.bind('mousedown', function (ev) {
-            
-            originElement = angular.element(ev.target);
 
-            var originScope = originElement.scope();
+            var grabTimeout = $timeout(grabElement, 100);
 
-            var canDrag = originScope.$eval(child.attr('cal-entry-draggable'));
+            elt.bind('mouseup', function () {
+              $timeout.cancel(grabTimeout);
+              elt.unbind('mouseup');
+            });
 
-            if (dragValue || !canDrag || originElement.attr('cal-day')) {
-              return;
+            function grabElement() {
+              originElement = angular.element(ev.target);
+
+              var originScope = originElement.scope();
+
+              var canDrag = originScope.$eval(child.attr('cal-entry-draggable'));
+
+              if (dragValue || !canDrag || originElement.attr('cal-day')) {
+                return;
+              }
+
+              // find the right parent
+              while (originElement.attr('cal-entry') === undefined) {
+                originElement = originElement.parent();
+                if (originElement === body) return;
+              }
+
+              while (originScope[valueIdentifier] === undefined) {
+                originScope = originScope.$parent;
+                if (!originScope) return;
+              }
+
+              dragValue = originScope[valueIdentifier];
+              dragKey = originScope[keyIdentifier];
+              if (!dragValue) {
+                return;
+              }
+
+              // get offset inside element to drag
+              var offset = getElementOffset(originElement[0]);
+
+              dragOrigin = scope.$eval(rhs);
+              // dragValue = angular.copy(dragValue);
+
+              offsetX = (ev.pageX - offset.left);
+              offsetY = (ev.pageY - offset.top);
+
+              originElemOffsetX = offset.left;
+              originElemOffsetY = offset.top;
+
+              spawnFloaty();
+              originElement.css({ 'visibility': 'hidden'});
+              drag(ev);
             }
-
-            // find the right parent
-            while (originElement.attr('cal-entry') === undefined) {
-              originElement = originElement.parent();
-              if (originElement === body) return;
-            }
-
-            while (originScope[valueIdentifier] === undefined) {
-              originScope = originScope.$parent;
-              if (!originScope) return;
-            }
-
-            dragValue = originScope[valueIdentifier];
-            dragKey = originScope[keyIdentifier];
-            if (!dragValue) {
-              return;
-            }
-
-            // get offset inside element to drag
-            var offset = getElementOffset(originElement[0]);
-
-            dragOrigin = scope.$eval(rhs);
-            // dragValue = angular.copy(dragValue);
-
-            offsetX = (ev.pageX - offset.left);
-            offsetY = (ev.pageY - offset.top);
-
-            originElemOffsetX = offset.left;
-            originElemOffsetY = offset.top;
-
-            spawnFloaty();
-            originElement.css({ 'visibility': 'hidden'});
-            drag(ev);
           });
         };
       }
