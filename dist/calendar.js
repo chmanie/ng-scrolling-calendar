@@ -300,6 +300,7 @@ Don't: do anything more than get a scroll offset in the scroll event handler
 
           day.html(dayTemplate);
           day.addClass([date.getYear(), date.getMonth()].join('_'));
+          if (scope.$isToday) day.addClass('today');
 
           // initialize with background color
           angular.element(day).css({
@@ -328,18 +329,23 @@ Don't: do anything more than get a scroll offset in the scroll event handler
 
           entryData = entryData || getEntryData(dataFirstDate, dataLastDate);
 
+          var week;
+
           return $q.when(getEntryData(dataFirstDate, dataLastDate)).then(function (eData) {
             
-            var week;
-
             for(var i = 0; i < numWeeks-1; i++) {
               week = prependWeek(eData);
             }
+          }).then(function () {
 
             // shift all the other breakpoints
-            for (var j = scrollDates.length - 1; j >= 0; j--) {
-              scrollDates[j].pos = scrollDates[j].pos + week.offsetHeight*(numWeeks-1);
-            }
+            return $timeout(function () {
+              for (var j = scrollDates.length - 1; j >= 0; j--) {
+                scrollDates[j].pos = scrollDates[j].pos + week.offsetHeight*(numWeeks-1);
+              }
+            }, 50);
+
+          }).then(function () {
             var tempDate = (new Date(firstDate)).addDays(7);
             scrollDates.unshift({ month: tempDate.getMonth(), pos: week.offsetTop, year: tempDate.getYear() });
           });
@@ -690,11 +696,13 @@ Don't: do anything more than get a scroll offset in the scroll event handler
     };
 
     $document.bind('mouseup', function (ev) {
+      
+      enableSelect();
+
       if (!dragValue) {
         return;
       }
 
-      enableSelect();
       $document.unbind('mousemove', drag);
 
       var dropArea = getElementBehindPoint(floaty, ev.clientX, ev.clientY);
@@ -809,11 +817,12 @@ Don't: do anything more than get a scroll offset in the scroll event handler
               $compile(floaty)(floatyScope);
               documentBody.append(floaty);
               $document.bind('mousemove', drag);
-              disableSelect();
             });
           };
 
           elt.bind('mousedown', function (ev) {
+
+            disableSelect();
 
             var grabTimeout = $timeout(grabElement, 100);
 
@@ -823,6 +832,7 @@ Don't: do anything more than get a scroll offset in the scroll event handler
             });
 
             function grabElement() {
+
               originElement = angular.element(ev.target);
 
               var originScope = originElement.scope();
