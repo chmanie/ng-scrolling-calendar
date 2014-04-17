@@ -194,7 +194,9 @@ https://medium.com/p/463bc649c7bd
             });
         }
 
-        function colorizeMonth() {
+        function watchScrollIndex() {
+
+          setTimeout(watchScrollIndex, 100);
 
           if (scrollDates[currentScrollIndex+1] && originalParentElement.scrollTop > scrollDates[currentScrollIndex+1].pos) {
             currentScrollIndex++;
@@ -228,6 +230,13 @@ https://medium.com/p/463bc649c7bd
             nextMonthElm = angular.element(originalDocument.getElementsByClassName([nextScrollYear, nextScrollMonth].join('_')));
 
           }
+
+          expandCalendar();
+        }
+
+        function colorizeMonth() {
+
+          requestAnimationFrame(colorizeMonth);
 
           if (scrollDates[currentScrollIndex] && scrollDates[currentScrollIndex+1]) {
             var difference = scrollDates[currentScrollIndex+1].pos - scrollDates[currentScrollIndex].pos;
@@ -490,9 +499,11 @@ https://medium.com/p/463bc649c7bd
             originalParentElement.scrollTop = firstWeekElement.offsetTop;
             currentScrollIndex = 1;
             $timeout(function () {
-              refreshCalendar();
+              // refreshCalendar();
+              watchScrollIndex();
+              requestAnimationFrame(colorizeMonth);
               parentElement.css('visibility', 'visible');
-              parentElement.bind('mousewheel', refreshCalendar);
+              // parentElement.bind('mousewheel', refreshCalendar);
             });
             
             // parentElement.bind('scroll', refreshCalendar);
@@ -518,12 +529,6 @@ https://medium.com/p/463bc649c7bd
           return color.slice(1,4).join(',');
         }
 
-        function refreshCalendar() {
-          // colorizeMonth();
-          expandCalendar();
-          requestAnimationFrame(colorizeMonth);
-        }
-
         function smoothScrollTo(pos) {
 
           // console.log(originalParentElement.scrollTop);
@@ -545,7 +550,6 @@ https://medium.com/p/463bc649c7bd
               return;
             }
             var percent = (new Date() - startTime) / 1000;
-            colorizeMonth();
             requestAnimationFrame(scroll);
             originalParentElement.scrollTop = originalParentElement.scrollTop - (originalParentElement.scrollTop - pos) * curve(percent);
           }
@@ -574,9 +578,7 @@ https://medium.com/p/463bc649c7bd
             smoothScrollTo(scrollDates[activeScrollIndex-1].pos).then(function () {
               if (!scrollDates[activeScrollIndex-2]) {
                 prependMonth().then(function () {
-                  colorizeMonth();
                   originalParentElement.scrollTop = originalParentElement.scrollTop + (originalElement.scrollHeight - oldScrollHeight + 1);
-                  colorizeMonth();
                 });
               }
             });
@@ -585,11 +587,6 @@ https://medium.com/p/463bc649c7bd
             smoothScrollTo(firstWeekElement.offsetTop);
           }
         };
-
-        // function intervalExpand() {
-        //   expandCalendar();
-        //   setTimeout(intervalExpand, 100);
-        // }
 
         loadCalendarAroundDate(new Date());
 
