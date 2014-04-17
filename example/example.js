@@ -3,11 +3,17 @@
 
   angular.module('scrollingCalendarExample', ['scrollingCalendar']);
 
-  angular.module('scrollingCalendarExample').controller('ExampleCtrl', function($scope, $timeout){
+  angular.module('scrollingCalendarExample').controller('ExampleCtrl', function($scope, $timeout, $q){
     $scope.getData = function (startDate, endDate) {
+      var deferred = $q.defer();
       var date = new Date(startDate);
       date.setDate(startDate.getDate()+10);
-      return [{ title: 'Blubb', dateBegin: date }, { title: 'Today!!!', dateBegin: new Date() }];
+
+      $timeout(function () {
+        deferred.resolve([{ title: 'Blubb', dateBegin: date }, { title: 'Today!!!', dateBegin: new Date() }]);
+      }, 500);
+
+      return deferred.promise;
     };
 
     $scope.calDrop = function (item, targetDay, originDay) {

@@ -15,6 +15,10 @@ Do: retain inertial scrolling.
 Do: GPU accelerate the layer
 Don't: have a hover effect that can trigger during scroll
 Don't: do anything more than get a scroll offset in the scroll event handler
+
+https://plus.google.com/+PaulIrish/posts/Ee53Gg6VCck
+https://medium.com/p/463bc649c7bd
+
  */
 
 
@@ -26,7 +30,10 @@ Don't: do anything more than get a scroll offset in the scroll event handler
   Date.prototype.linesOfMonth = function (firstDayOfWeek) {
     var daysOfMonth = this.daysOfMonth();
     var offset = this.firstDayOffsets(firstDayOfWeek)[this.firstDateOfMonth().getDay()];
-    return Math.ceil((offset + daysOfMonth)/7);
+    var firstDayOfMonth = new Date(this).goToFirstDayOfMonth();
+    // we have a week offset if the first day of month is firstDayOfWeek
+    var weekOffset = (firstDayOfMonth.getDay() === firstDayOfWeek) ? 1 : 0;
+    return Math.ceil((offset + daysOfMonth)/7)+weekOffset;
   };
 
   Date.prototype.firstDayOffsets = function (firstDayOfWeek) {
@@ -317,9 +324,8 @@ Don't: do anything more than get a scroll offset in the scroll event handler
           var weekOffset = 0;
           if (dayOfMonth === 1) {
             tempDate.setDate(0); // jump to correct month
-            weekOffset = 1; // we have a week offset if the first day of month is firstDayOfWeek
           }
-          var numWeeks = tempDate.linesOfMonth(firstDayOfWeek)+weekOffset;
+          var numWeeks = tempDate.linesOfMonth(firstDayOfWeek);
           
           var dataLastDate = new Date(firstDate).subtractDays(1);
           var dataFirstDate = new Date(firstDate).subtractDays((numWeeks-1)*7);
@@ -330,6 +336,8 @@ Don't: do anything more than get a scroll offset in the scroll event handler
           entryData = entryData || getEntryData(dataFirstDate, dataLastDate);
 
           var week;
+
+          // todo: is promise chain this really necessary?
 
           return $q.when(getEntryData(dataFirstDate, dataLastDate)).then(function (eData) {
             
@@ -512,9 +520,8 @@ Don't: do anything more than get a scroll offset in the scroll event handler
 
         function refreshCalendar() {
           // colorizeMonth();
-          requestAnimationFrame(colorizeMonth);
           expandCalendar();
-          
+          requestAnimationFrame(colorizeMonth);
         }
 
         function smoothScrollTo(pos) {
@@ -560,10 +567,6 @@ Don't: do anything more than get a scroll offset in the scroll event handler
                   }
                 });
               }
-            });
-            // set currentMonth after current $digest() cycle
-            $timeout(function () {
-              colorizeMonth();
             });
           },
           scrollToPrevMonth: function () {
