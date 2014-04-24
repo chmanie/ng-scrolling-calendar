@@ -13,6 +13,7 @@
       <button ng-click="calInterface.scrollToNextMonth()">Next</button>
       <button ng-click="calInterface.scrollToToday()">Today</button>
       <button ng-click="calInterface.scrollToPrevMonth()">Prev</button>
+      <button ng-click="calInterface.colorize()">Colorize!</button>
     </div>
     <div style="height:600px;width:100%;overflow-y:scroll">
       <table calendar cal-data="getData($firstDate, $lastDate)" cal-drop="calDrop($item, $targetDay, $originDay)" cal-day-template="day.html" cal-date-key="dateBegin" current-month="currentMonth" current-year="currentYear" cal-interface="calInterface"></table>

@@ -19,22 +19,6 @@ Don't: do anything more than get a scroll offset in the scroll event handler
 https://plus.google.com/+PaulIrish/posts/Ee53Gg6VCck
 https://medium.com/p/463bc649c7bd
 
-
-
-
-// great algorithm to populate days :{} (entries have to be sorted by date!)
-while (data && data.length) {
-  if (date.isSameDay(new Date(data[0][entryDateKey]))) {
-    scope.$entries.push(data.shift());
-  } else if (date.isSameDay(new Date(data[data.length-1][entryDateKey]))) {
-    scope.$entries.push(data.pop());
-  } else {
-    break;
-  }
-}
-
-
-
  */
 
 
@@ -45,6 +29,14 @@ while (data && data.length) {
 
   Date.prototype.daysOfMonth = function () {
     return new Date(this.getFullYear(), this.getMonth()+1, 0).getDate();
+  };
+
+  Date.prototype.getDayKey = function () {
+    var day = (this.getDate() < 10) ? '0' + this.getDate() : this.getDate();
+    var month = (this.getMonth() + 1 < 10) ? '0' + (this.getMonth()+1) : this.getMonth()+1;
+    var year = this.getFullYear();
+
+    return String(year) + String(month) + String(day);
   };
 
   Date.prototype.goToFirstDayOfWeek = function (firstDayOfWeek) {
@@ -161,7 +153,7 @@ while (data && data.length) {
           , parentElement = element.parent()
           , originalParentElement = parentElement[0]
           , tableOffset = originalElement.offsetTop - originalParentElement.offsetTop
-          , scrollDates = []
+          , scrollDates = [], dayScopes = {}
           , entryDateKey = attrs.calDateKey
           , defaultBackgroundColor = [233, 229, 236]
           // , defaultBackgroundColor = [255, 255, 255]
@@ -189,6 +181,16 @@ while (data && data.length) {
             .success(function (template) {
               dayTemplate = template;
             });
+        }
+
+        function populateRange(range) {
+          getEntryData(range.firstDate, range.lastDate).then(function (data) {
+            while (data && data.length) {
+              var date = new Date(data[0][entryDateKey]);
+              var scope = dayScopes[date.getDayKey()];
+              scope.$entries.push(data.shift());
+            }
+          });
         }
 
         function watchScrollIndex() {
@@ -268,16 +270,22 @@ while (data && data.length) {
         }
 
         function expandCalendar() {
+          var range;
+
           if (originalParentElement.scrollTop < topScrollTrigger) {
             var oldScrollHeight = originalElement.scrollHeight;
-            prependMonth();
+            range = prependMonth();
             originalParentElement.scrollTop = originalParentElement.scrollTop + (originalElement.scrollHeight - oldScrollHeight);
+            colorizeMonth();
             $scope.$digest();
+
           }
           else if ((originalElement.scrollHeight - originalParentElement.offsetHeight) - originalParentElement.scrollTop < 700) {
-            appendMonth();
+            range = appendMonth();
+            colorizeMonth();
             $scope.$digest();
           }
+          if (range) populateRange(range);
         }
 
         function generateDay(day, date, data) {
@@ -296,12 +304,7 @@ while (data && data.length) {
 
           day = angular.element(day);
 
-          // var scopes = {
-          //   '20140403': {
-          //     scope: scope,
-          //     day: day
-          //   }
-          // };
+          dayScopes[date.getDayKey()] = scope;
 
           day.html(dayTemplate);
           day.addClass([date.getYear(), date.getMonth()].join('_'));
@@ -357,9 +360,6 @@ while (data && data.length) {
           var dataLastDate = new Date(firstDate).subtractDays(1);
           var dataFirstDate = new Date(firstDate).subtractDays((numWeeks)*7);
 
-          // console.log(dataFirstDate);
-          // console.log(dataLastDate);
-
           var week;
             
           for(var i = 0; i < numWeeks; i++) {
@@ -372,6 +372,12 @@ while (data && data.length) {
           }
           var monthDate = (new Date(firstDate)).addDays(7);
           scrollDates.unshift({ month: monthDate.getMonth(), pos: week.offsetTop + tableOffset, year: monthDate.getYear() });
+
+          return {
+            firstDate: dataFirstDate,
+            lastDate: dataLastDate
+          };
+
         }
 
         function appendMonth() {
@@ -389,10 +395,13 @@ while (data && data.length) {
           var dataFirstDate = (new Date(lastDate)).goToFirstDayOfWeek(firstDayOfWeek);
           var dataLastDate = (new Date(dataFirstDate)).addDays((numWeeks)*7-1);
 
-          // console.log(dataFirstDate);
-          // console.log(dataLastDate);
-
           for(var i = 0; i < numWeeks; i++) appendWeek();
+
+          return {
+            firstDate: dataFirstDate,
+            lastDate: dataLastDate
+          };
+
         }
 
         function prependWeek() {
