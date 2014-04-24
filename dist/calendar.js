@@ -163,6 +163,7 @@ https://medium.com/p/463bc649c7bd
           , originalDocument = $document[0]
           , parentElement = element.parent()
           , originalParentElement = parentElement[0]
+          , tableOffset = originalElement.offsetTop - originalParentElement.offsetTop
           , scrollDates = []
           , entryDateKey = attrs.calDateKey
           , defaultBackgroundColor = [233, 229, 236]
@@ -173,7 +174,6 @@ https://medium.com/p/463bc649c7bd
           , firstDayOfWeek = 1
           , mapLastDay = [6, 0, 1, 2, 3, 4, 5]
           , lastDayOfWeek = mapLastDay[firstDayOfWeek];
-          
 
         calListeners.setScope($scope.$parent);
         calListeners.onDrop($parse(attrs.calDrop));
@@ -202,7 +202,7 @@ https://medium.com/p/463bc649c7bd
             currentScrollIndex++;
           }
 
-          if (scrollDates[currentScrollIndex] && originalParentElement.scrollTop < scrollDates[currentScrollIndex].pos) {
+          if (scrollDates[currentScrollIndex] && originalParentElement.scrollTop < scrollDates[currentScrollIndex].pos && currentScrollIndex !== 0) {
             currentScrollIndex--;
 
           }
@@ -314,12 +314,19 @@ https://medium.com/p/463bc649c7bd
 
           day = angular.element(day);
 
+          var scopes = {
+            '20140403': {
+              scope: scope,
+              day: day
+            }
+          };
+
           day.html(dayTemplate);
           day.addClass([date.getYear(), date.getMonth()].join('_'));
           if (scope.$isToday) day.addClass('today');
 
           // initialize with background color
-          angular.element(day).css({
+          day.css({
             'background-color': 'rgba(' + backgroundColor + ', 1)'
           });
 
@@ -364,7 +371,8 @@ https://medium.com/p/463bc649c7bd
 
           }).then(function () {
             var tempDate = (new Date(firstDate)).addDays(7);
-            scrollDates.unshift({ month: tempDate.getMonth(), pos: week.offsetTop, year: tempDate.getYear() });
+            scrollDates.unshift({ month: tempDate.getMonth(), pos: week.offsetTop + tableOffset, year: tempDate.getYear() });
+            console.log(scrollDates);
           });
         }
 
@@ -414,7 +422,7 @@ https://medium.com/p/463bc649c7bd
           do {
             lastDate.addDays(1);
             if(lastDate.getDate() === 1) {
-              scrollDates.push({ month: lastDate.getMonth(), pos: week.offsetTop, year: lastDate.getYear() });
+              scrollDates.push({ month: lastDate.getMonth(), pos: week.offsetTop + tableOffset, year: lastDate.getYear() });
             }
             var day = week.insertCell(-1);
             generateDay(day, lastDate, data);
@@ -444,7 +452,7 @@ https://medium.com/p/463bc649c7bd
             week = prependWeek(entryData);
           }
           if (week) {
-            scrollDates.push({ month: lastDate.getMonth(), pos: week.offsetTop, year: lastDate.getYear() });
+            scrollDates.push({ month: lastDate.getMonth(), pos: week.offsetTop + tableOffset, year: lastDate.getYear() });
           } else {
             // date already is in the first week of current month. just append one week
             week = appendWeek(entryData);
@@ -495,22 +503,26 @@ https://medium.com/p/463bc649c7bd
           .then(function () {
             // get cell background color from css
             backgroundColor = getBackgroundColor();
-            // scroll to current month
-            originalParentElement.scrollTop = firstWeekElement.offsetTop;
             currentScrollIndex = 1;
             $timeout(function () {
               // refreshCalendar();
               watchScrollIndex();
               requestAnimationFrame(colorizeMonth);
+              // scroll to current month
+              // originalParentElement.scrollTop = firstWeekElement.offsetTop;
               parentElement.css('visibility', 'visible');
+              smoothScrollTo(firstWeekElement.offsetTop + tableOffset).then(function () {
+                // console.log(firstWeekElement.offsetTop);
+                console.log(angular.element(firstWeekElement));
+              });
               // parentElement.bind('mousewheel', refreshCalendar);
             });
             
             // parentElement.bind('scroll', refreshCalendar);
             // parentElement.bind('mousewheel', refreshCalendar);
-            // parentElement.bind('mousewheel', function () {
-            //   console.log(originalParentElement.scrollTop);
-            // });
+            parentElement.bind('mousewheel', function () {
+              console.log(originalParentElement.scrollTop);
+            });
             
           });
           
