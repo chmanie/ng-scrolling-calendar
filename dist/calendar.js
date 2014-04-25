@@ -107,13 +107,21 @@ https://medium.com/p/463bc649c7bd
         listeners.drop = cb;
       },
       drop: function (calItem, targetDay, originDay) {
-        if (listeners.drop) {
-          listeners.drop(scope, {
-            $item: calItem,
-            $targetDay: targetDay,
-            $originDay: originDay
-          });
-        }
+        if (!listeners.drop) return;
+        listeners.drop(scope, {
+          $item: calItem,
+          $targetDay: targetDay,
+          $originDay: originDay
+        });
+      },
+      onClick: function (cb) {
+        listeners.click = cb;
+      },
+      click: function (calItem) {
+        if (!listeners.click) return;
+        return listeners.click(scope, {
+          $item: calItem
+        });
       }
     };
   });
@@ -166,6 +174,7 @@ https://medium.com/p/463bc649c7bd
 
         calListeners.setScope($scope.$parent);
         calListeners.onDrop($parse(attrs.calDrop));
+        calListeners.onClick($parse(attrs.calEntryClick));
 
         var getDataFn = $parse(attrs.calData);
 
@@ -175,6 +184,43 @@ https://medium.com/p/463bc649c7bd
             $lastDate: lastDate
           });
         }
+
+        var dayClickFn = $parse(attrs.calDayClick);
+
+        function dayClick(day) {
+          return dayClickFn($scope.$parent, {
+            $day: day
+          });
+        }
+
+        $scope.calInterface = {
+          scrollToNextMonth: function () {
+            smoothScrollTo(scrollDates[activeScrollIndex+1].pos).then(function () {
+              if (!scrollDates[activeScrollIndex+2]) {
+                appendMonth();
+                if (!scrollDates[activeScrollIndex+2]) {
+                  // in very rare cases we need to add two months
+                  appendMonth();
+                }
+              }
+            });
+          },
+          scrollToPrevMonth: function () {
+            var oldScrollHeight = originalElement.scrollHeight;
+            smoothScrollTo(scrollDates[activeScrollIndex-1].pos).then(function () {
+              if (!scrollDates[activeScrollIndex-2]) {
+                prependMonth();
+                originalParentElement.scrollTop = originalParentElement.scrollTop + (originalElement.scrollHeight - oldScrollHeight + 1);
+                $timeout(function () {
+                  originalParentElement.scrollTop = originalParentElement.scrollTop - 1;
+                }, 100);
+              }
+            });
+          },
+          scrollToToday: function () {
+            smoothScrollTo(firstWeekElement.offsetTop);
+          }
+        };
 
         function getDayTemplate() {
           return $http.get(attrs.calDayTemplate, { cache: $templateCache })
@@ -208,8 +254,6 @@ https://medium.com/p/463bc649c7bd
 
           if (currentScrollIndex !== lastScrollIndex) {
 
-            console.log(currentScrollIndex);
-
             lastScrollIndex = currentScrollIndex;
 
             currentScrollMonth = scrollDates[currentScrollIndex].month;
@@ -230,14 +274,14 @@ https://medium.com/p/463bc649c7bd
             currentMonthElm = angular.element(originalDocument.getElementsByClassName([currentScrollYear, currentScrollMonth].join('_')));
             nextMonthElm = angular.element(originalDocument.getElementsByClassName([nextScrollYear, nextScrollMonth].join('_')));
 
-          }
+            colorizeMonth();
 
-          expandCalendar();
+          }
         }
 
         function colorizeMonth() {
 
-          requestAnimationFrame(colorizeMonth);
+          // requestAnimationFrame(colorizeMonth);
 
           if (scrollDates[currentScrollIndex] && scrollDates[currentScrollIndex+1]) {
             var difference = scrollDates[currentScrollIndex+1].pos - scrollDates[currentScrollIndex].pos;
@@ -314,6 +358,10 @@ https://medium.com/p/463bc649c7bd
           // day.css({
           //   'background-color': 'rgba(' + backgroundColor + ', 1)'
           // });
+
+          day.bind('click', function () {
+            dayClick(scope);
+          });
 
           $compile(day)(scope);
           
@@ -502,7 +550,6 @@ https://medium.com/p/463bc649c7bd
             // refreshCalendar();
             $timeout(function () {
               watchScrollIndex();
-              requestAnimationFrame(colorizeMonth);
               parentElement.css('visibility', 'visible');
               smoothScrollTo(firstWeekElement.offsetTop + tableOffset);
             });
@@ -512,9 +559,10 @@ https://medium.com/p/463bc649c7bd
             
             
             // parentElement.bind('mousewheel', refreshCalendar);
-            // parentElement.bind('mousewheel', function () {
-            //   console.log(originalParentElement.scrollTop);
-            // });
+            parentElement.bind('mousewheel', function () {
+              requestAnimationFrame(colorizeMonth);
+              expandCalendar();
+            });
 
           });
           
@@ -547,15 +595,14 @@ https://medium.com/p/463bc649c7bd
 
           function scroll() {
             if (originalPos > pos && originalParentElement.scrollTop <= pos) {
-              deferred.resolve(originalParentElement.scrollTop);
-              return;
+              return deferred.resolve(originalParentElement.scrollTop);
             } else if (originalPos < pos && originalParentElement.scrollTop >= pos) {
-              deferred.resolve(originalParentElement.scrollTop);
-              return;
+              return deferred.resolve(originalParentElement.scrollTop);
             }
             var percent = (new Date() - startTime) / 1000;
-            requestAnimationFrame(scroll);
             originalParentElement.scrollTop = originalParentElement.scrollTop - (originalParentElement.scrollTop - pos) * curve(percent);
+            requestAnimationFrame(colorizeMonth);
+            requestAnimationFrame(scroll);
           }
 
           scroll();
@@ -563,32 +610,6 @@ https://medium.com/p/463bc649c7bd
           return deferred.promise;
 
         }
-
-        $scope.calInterface = {
-          scrollToNextMonth: function () {
-            smoothScrollTo(scrollDates[activeScrollIndex+1].pos).then(function () {
-              if (!scrollDates[activeScrollIndex+2]) {
-                appendMonth();
-                if (!scrollDates[activeScrollIndex+2]) {
-                  // in very rare cases we need to add two months
-                  appendMonth();
-                }
-              }
-            });
-          },
-          scrollToPrevMonth: function () {
-            var oldScrollHeight = originalElement.scrollHeight;
-            smoothScrollTo(scrollDates[activeScrollIndex-1].pos).then(function () {
-              if (!scrollDates[activeScrollIndex-2]) {
-                prependMonth();
-                originalParentElement.scrollTop = originalParentElement.scrollTop + (originalElement.scrollHeight - oldScrollHeight + 1);
-              }
-            });
-          },
-          scrollToToday: function () {
-            smoothScrollTo(firstWeekElement.offsetTop);
-          }
-        };
 
         loadCalendarAroundDate(new Date());
 
@@ -822,11 +843,34 @@ https://medium.com/p/463bc649c7bd
             });
           };
 
+          function getOriginScope(elem) {
+            var originScope = elem.scope();
+            while (originScope[valueIdentifier] === undefined) {
+              originScope = originScope.$parent;
+              if (!originScope) return;
+            }
+            return originScope;
+          }
+
+          elt.bind('click', function (ev) {
+            var oElement = angular.element(ev.target);
+            if (!oElement.attr('cal-day')) {
+              ev.stopPropagation();
+              var originScope = getOriginScope(oElement);
+              console.log(originScope[valueIdentifier]);
+              calListeners.click(originScope[valueIdentifier]);
+            }
+          });
+
           elt.bind('mousedown', function (ev) {
+
+            var oElement = angular.element(ev.target);
+
+            var originScope = getOriginScope(oElement);
 
             disableSelect();
 
-            var grabTimeout = $timeout(grabElement, 100);
+            var grabTimeout = $timeout(grabElement, 200);
 
             elt.bind('mouseup', function () {
               $timeout.cancel(grabTimeout);
@@ -835,9 +879,9 @@ https://medium.com/p/463bc649c7bd
 
             function grabElement() {
 
-              originElement = angular.element(ev.target);
+              originElement = oElement;
 
-              var originScope = originElement.scope();
+              if (!originScope) return;
 
               var canDrag = originScope.$eval(child.attr('cal-entry-draggable'));
 
@@ -849,11 +893,6 @@ https://medium.com/p/463bc649c7bd
               while (originElement.attr('cal-entry') === undefined) {
                 originElement = originElement.parent();
                 if (originElement === body) return;
-              }
-
-              while (originScope[valueIdentifier] === undefined) {
-                originScope = originScope.$parent;
-                if (!originScope) return;
               }
 
               dragValue = originScope[valueIdentifier];

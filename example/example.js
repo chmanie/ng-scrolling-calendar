@@ -23,9 +23,9 @@
       console.log(targetDay, originDay);
     };
 
-    $timeout(function () {
-      console.log($scope.calInterface);
-    }, 1000);
+    $scope.dayClick = function (day) {
+      console.log(day);
+    };
 
   });
 
