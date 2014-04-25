@@ -22,7 +22,7 @@ https://medium.com/p/463bc649c7bd
 
 Issues:
 
-Scroll to month has offsets in IE10
+smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
 
  */
 
@@ -177,6 +177,8 @@ Scroll to month has offsets in IE10
           , mapLastDay = [6, 0, 1, 2, 3, 4, 5]
           , lastDayOfWeek = mapLastDay[firstDayOfWeek];
 
+        var monthElements = {};
+
         calListeners.setScope($scope.$parent);
         calListeners.onDrop($parse(attrs.calDrop));
         calListeners.onClick($parse(attrs.calEntryClick));
@@ -216,6 +218,7 @@ Scroll to month has offsets in IE10
               if (!scrollDates[activeScrollIndex-2]) {
                 populateRange(prependMonth());
                 originalParentElement.scrollTop = originalParentElement.scrollTop + (originalElement.scrollHeight - oldScrollHeight);
+                colorizeMonth();
               }
             });
           },
@@ -245,15 +248,17 @@ Scroll to month has offsets in IE10
 
           setTimeout(watchScrollIndex, 100);
 
-          if (scrollDates[currentScrollIndex+1] && originalParentElement.scrollTop > scrollDates[currentScrollIndex+1].pos) {
+          if (scrollDates[currentScrollIndex+1] && originalParentElement.scrollTop >= scrollDates[currentScrollIndex+1].pos) {
             currentScrollIndex++;
+            console.log('added 1 to currentScrollIndex to ' + currentScrollIndex);
           }
 
-          if (scrollDates[currentScrollIndex] && originalParentElement.scrollTop <= scrollDates[currentScrollIndex].pos && currentScrollIndex !== 0) {
+          if (scrollDates[currentScrollIndex] && originalParentElement.scrollTop < scrollDates[currentScrollIndex].pos && currentScrollIndex !== 0) {
             currentScrollIndex--;
+            console.log('subtracted 1 from currentScrollIndex to ' + currentScrollIndex);
           }
 
-          if (currentScrollIndex !== lastScrollIndex || currentScrollIndex === 0) {
+          if (currentScrollIndex !== lastScrollIndex) {
 
             lastScrollIndex = currentScrollIndex;
 
@@ -272,44 +277,46 @@ Scroll to month has offsets in IE10
               nextScrollMonth = currentScrollMonth + 1;
               nextScrollYear = currentScrollYear;
             }
-            currentMonthElm = angular.element(originalDocument.getElementsByClassName([currentScrollYear, currentScrollMonth].join('_')));
-            nextMonthElm = angular.element(originalDocument.getElementsByClassName([nextScrollYear, nextScrollMonth].join('_')));
+            currentMonthElm = monthElements[[currentScrollYear, currentScrollMonth].join('_')];
+            nextMonthElm = monthElements[[nextScrollYear, nextScrollMonth].join('_')];
 
-            colorizeMonth();
+
+            // currentMonthElm = angular.element(originalDocument.getElementsByClassName([currentScrollYear, currentScrollMonth].join('_')));
+            // nextMonthElm = angular.element(originalDocument.getElementsByClassName([nextScrollYear, nextScrollMonth].join('_')));
+
+            // console.log(currentMonthElm);
 
           }
         }
 
         function colorizeMonth() {
 
-          // requestAnimationFrame(colorizeMonth);
+          function setBackgroundOpacity(elements, opacity) {
+            for (var i = elements.length - 1; i >= 0; i--) {
+              elements[i].css({
+                'background-color': 'rgba(' + backgroundColor + ', ' + opacity + ')'
+              });
+            }
+          }
 
           if (scrollDates[currentScrollIndex] && scrollDates[currentScrollIndex+1]) {
             var difference = scrollDates[currentScrollIndex+1].pos - scrollDates[currentScrollIndex].pos;
             var pos = originalParentElement.scrollTop - scrollDates[currentScrollIndex].pos;
             var percentage = (pos/difference);
             // var backgroundOpacity = (percentage-offset)*speed/(1-offset);
-
-            // console.log(backgroundOpacity);
-            // console.log(percentage);
             
             if (percentage > offset) {
-              currentMonthElm.css({
-                'background-color': 'rgba(' + backgroundColor + ', ' + 1 + ')'
-              });
-              nextMonthElm.css({
-                'background-color': 'rgba(' + backgroundColor + ', ' + 0 + ')'
-              });
+              if (percentage < 1) {
+                setBackgroundOpacity(currentMonthElm, 1);
+                setBackgroundOpacity(nextMonthElm, 0);
+              }
               activeScrollIndex = currentScrollIndex+1;
-            }
-            else {
-              currentMonthElm.css({
-                'background-color': 'rgba(' + backgroundColor + ', ' + 0 + ')'
-              });
-              nextMonthElm.css({
-                'background-color': 'rgba(' + backgroundColor + ', ' + 1 + ')'
-              });
+              console.log('set activeScrollIndex to ', activeScrollIndex);
+            } else {
+              setBackgroundOpacity(currentMonthElm, 0);
+              setBackgroundOpacity(nextMonthElm, 1);
               activeScrollIndex = currentScrollIndex;
+              console.log('set activeScrollIndex to ', activeScrollIndex);
             }
           }
         }
@@ -348,14 +355,13 @@ Scroll to month has offsets in IE10
 
           dayScopes[date.getDayKey()] = scope;
 
-          day.html(dayTemplate);
-          day.addClass([date.getYear(), date.getMonth()].join('_'));
-          if (scope.$isToday) day.addClass('today');
+          var monthKey = [date.getYear(), date.getMonth()].join('_');
+          monthElements[monthKey] = monthElements[monthKey] || [];
+          monthElements[monthKey].push(day);
 
-          // initialize with background color
-          // day.css({
-          //   'background-color': 'rgba(' + backgroundColor + ', 1)'
-          // });
+          day.html(dayTemplate);
+  
+          if (scope.$isToday) day.addClass('today');
 
           day.bind('click', function () {
             dayClick(scope);
@@ -555,17 +561,13 @@ Scroll to month has offsets in IE10
               expandCalendar();
             });
 
-            // parentElement.bind('mousewheel', function () {
-              
-            // });
-
           });
           
         }
 
         function getBackgroundColor() {
           var cssBackground;
-          var todayElm = originalDocument.getElementsByClassName(firstDate.getYear() + '_' + firstDate.getMonth())[0];
+          var todayElm = originalDocument.getElementsByClassName('today')[0];
           if (todayElm.currentStyle) {
             cssBackground = todayElm.currentStyle.backgroundColor || '';
           } else {
