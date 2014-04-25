@@ -155,29 +155,23 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
       // compile: function(tElement, tAttrs, function transclude(function(scope, cloneLinkingFn){ return function linking(scope, elm, attrs){}})),
       link: function($scope, element, attrs, controller) {
 
-        var firstWeekElement, firstDate, lastDate, backgroundColor, dayTemplate, loading
-          , currentMonthElm, nextMonthElm
-          , currentScrollMonth, currentScrollYear, nextScrollMonth, nextScrollYear
-          , currentScrollIndex
-          , lastScrollIndex
-          , activeScrollIndex
+        var firstWeekElement, firstDate, lastDate, backgroundColor, dayTemplate
+          , currentMonthElms, nextMonthElms
+          , currentScrollIndex, lastScrollIndex, activeScrollIndex
           , originalElement = element[0]
           , originalDocument = $document[0]
           , parentElement = element.parent()
           , originalParentElement = parentElement[0]
           , tableOffset = originalElement.offsetTop - originalParentElement.offsetTop
-          , scrollDates = [], dayScopes = {}
+          , scrollDates = [], dayScopes = {}, monthElements = {}
           , entryDateKey = attrs.calDateKey
           , defaultBackgroundColor = [233, 229, 236]
-          // , defaultBackgroundColor = [255, 255, 255]
           , offset = 0.5
           , speed = 2
           , topScrollTrigger = 200
           , firstDayOfWeek = 1
           , mapLastDay = [6, 0, 1, 2, 3, 4, 5]
           , lastDayOfWeek = mapLastDay[firstDayOfWeek];
-
-        var monthElements = {};
 
         calListeners.setScope($scope.$parent);
         calListeners.onDrop($parse(attrs.calDrop));
@@ -248,6 +242,8 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
 
           setTimeout(watchScrollIndex, 100);
 
+          var currentScrollMonth, currentScrollYear, nextScrollMonth, nextScrollYear;
+
           if (scrollDates[currentScrollIndex+1] && originalParentElement.scrollTop >= scrollDates[currentScrollIndex+1].pos) {
             currentScrollIndex++;
             console.log('added 1 to currentScrollIndex to ' + currentScrollIndex);
@@ -277,14 +273,8 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
               nextScrollMonth = currentScrollMonth + 1;
               nextScrollYear = currentScrollYear;
             }
-            currentMonthElm = monthElements[[currentScrollYear, currentScrollMonth].join('_')];
-            nextMonthElm = monthElements[[nextScrollYear, nextScrollMonth].join('_')];
-
-
-            // currentMonthElm = angular.element(originalDocument.getElementsByClassName([currentScrollYear, currentScrollMonth].join('_')));
-            // nextMonthElm = angular.element(originalDocument.getElementsByClassName([nextScrollYear, nextScrollMonth].join('_')));
-
-            // console.log(currentMonthElm);
+            currentMonthElms = monthElements[[currentScrollYear, currentScrollMonth].join('_')];
+            nextMonthElms = monthElements[[nextScrollYear, nextScrollMonth].join('_')];
 
           }
         }
@@ -307,14 +297,14 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
             
             if (percentage > offset) {
               if (percentage < 1) {
-                setBackgroundOpacity(currentMonthElm, 1);
-                setBackgroundOpacity(nextMonthElm, 0);
+                setBackgroundOpacity(currentMonthElms, 1);
+                setBackgroundOpacity(nextMonthElms, 0);
               }
               activeScrollIndex = currentScrollIndex+1;
               console.log('set activeScrollIndex to ', activeScrollIndex);
             } else {
-              setBackgroundOpacity(currentMonthElm, 0);
-              setBackgroundOpacity(nextMonthElm, 1);
+              setBackgroundOpacity(currentMonthElms, 0);
+              setBackgroundOpacity(nextMonthElms, 1);
               activeScrollIndex = currentScrollIndex;
               console.log('set activeScrollIndex to ', activeScrollIndex);
             }
@@ -326,13 +316,11 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
             var oldScrollHeight = originalElement.scrollHeight;
             populateRange(prependMonth());
             originalParentElement.scrollTop = originalParentElement.scrollTop + (originalElement.scrollHeight - oldScrollHeight);
-            colorizeMonth();
+            $timeout(colorizeMonth);
             $scope.$digest();
-
-          }
-          else if ((originalElement.scrollHeight - originalParentElement.offsetHeight) - originalParentElement.scrollTop < 700) {
+          } else if ((originalElement.scrollHeight - originalParentElement.offsetHeight) - originalParentElement.scrollTop < 700) {
             populateRange(appendMonth());
-            colorizeMonth();
+            $timeout(colorizeMonth);
             $scope.$digest();
           }
         }
@@ -340,7 +328,6 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
         function generateDay(day, date, data) {
           var scope = $scope.$new();
           scope.$entries = [];
-          // console.log(date);
 
           // assign all the helpers
           scope.$dateObj = new Date(date);
