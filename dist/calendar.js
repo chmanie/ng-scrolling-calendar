@@ -435,7 +435,7 @@ https://medium.com/p/463bc649c7bd
 
           var numWeeks = linesOfMonth(tempDate, offset);
 
-          var dataFirstDate = (new Date(lastDate)).goToFirstDayOfWeek(firstDayOfWeek);
+          var dataFirstDate = (new Date(lastDate)).addDays(1);
           var dataLastDate = (new Date(dataFirstDate)).addDays((numWeeks)*7-1);
 
           for(var i = 0; i < numWeeks; i++) appendWeek();
@@ -542,18 +542,13 @@ https://medium.com/p/463bc649c7bd
             backgroundColor = getBackgroundColor();
             currentScrollIndex = 1;
 
-            // refreshCalendar();
             $timeout(function () {
               watchScrollIndex();
               parentElement.css('visibility', 'visible');
+              // scroll to current month
               smoothScrollTo(firstWeekElement.offsetTop + tableOffset);
             });
-            
-            // scroll to current month
-            // originalParentElement.scrollTop = firstWeekElement.offsetTop;
-            
-            
-            // parentElement.bind('mousewheel', refreshCalendar);
+
             parentElement.bind('mousewheel', function () {
               requestAnimationFrame(colorizeMonth);
               expandCalendar();
