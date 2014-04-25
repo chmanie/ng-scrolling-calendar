@@ -19,6 +19,11 @@ Don't: do anything more than get a scroll offset in the scroll event handler
 https://plus.google.com/+PaulIrish/posts/Ee53Gg6VCck
 https://medium.com/p/463bc649c7bd
 
+
+Issues:
+
+Scroll to month has offsets in IE10
+
  */
 
 
@@ -210,10 +215,7 @@ https://medium.com/p/463bc649c7bd
             smoothScrollTo(scrollDates[activeScrollIndex-1].pos).then(function () {
               if (!scrollDates[activeScrollIndex-2]) {
                 populateRange(prependMonth());
-                originalParentElement.scrollTop = originalParentElement.scrollTop + (originalElement.scrollHeight - oldScrollHeight + 1);
-                $timeout(function () {
-                  originalParentElement.scrollTop = originalParentElement.scrollTop - 1;
-                }, 100);
+                originalParentElement.scrollTop = originalParentElement.scrollTop + (originalElement.scrollHeight - oldScrollHeight);
               }
             });
           },
@@ -247,12 +249,11 @@ https://medium.com/p/463bc649c7bd
             currentScrollIndex++;
           }
 
-          if (scrollDates[currentScrollIndex] && originalParentElement.scrollTop < scrollDates[currentScrollIndex].pos && currentScrollIndex !== 0) {
+          if (scrollDates[currentScrollIndex] && originalParentElement.scrollTop <= scrollDates[currentScrollIndex].pos && currentScrollIndex !== 0) {
             currentScrollIndex--;
-
           }
 
-          if (currentScrollIndex !== lastScrollIndex) {
+          if (currentScrollIndex !== lastScrollIndex || currentScrollIndex === 0) {
 
             lastScrollIndex = currentScrollIndex;
 
@@ -546,7 +547,7 @@ https://medium.com/p/463bc649c7bd
               watchScrollIndex();
               parentElement.css('visibility', 'visible');
               // scroll to current month
-              smoothScrollTo(firstWeekElement.offsetTop + tableOffset + 1);
+              smoothScrollTo(firstWeekElement.offsetTop + tableOffset);
             });
 
             addWheelListener(originalParentElement, function () {
@@ -969,7 +970,7 @@ https://medium.com/p/463bc649c7bd
   }
 }(window, document));
 
-// creates a global "addWheelListener" method
+// creates a global cross-browser "addWheelListener" method
 // example: addWheelListener( elem, function( e ) { console.log( e.deltaY ); e.preventDefault(); } );
 (function(window,document) {
 
