@@ -197,10 +197,10 @@ https://medium.com/p/463bc649c7bd
           scrollToNextMonth: function () {
             smoothScrollTo(scrollDates[activeScrollIndex+1].pos).then(function () {
               if (!scrollDates[activeScrollIndex+2]) {
-                appendMonth();
+                populateRange(appendMonth());
                 if (!scrollDates[activeScrollIndex+2]) {
                   // in very rare cases we need to add two months
-                  appendMonth();
+                  populateRange(appendMonth());
                 }
               }
             });
@@ -209,7 +209,7 @@ https://medium.com/p/463bc649c7bd
             var oldScrollHeight = originalElement.scrollHeight;
             smoothScrollTo(scrollDates[activeScrollIndex-1].pos).then(function () {
               if (!scrollDates[activeScrollIndex-2]) {
-                prependMonth();
+                populateRange(prependMonth());
                 originalParentElement.scrollTop = originalParentElement.scrollTop + (originalElement.scrollHeight - oldScrollHeight + 1);
                 $timeout(function () {
                   originalParentElement.scrollTop = originalParentElement.scrollTop - 1;
@@ -314,22 +314,19 @@ https://medium.com/p/463bc649c7bd
         }
 
         function expandCalendar() {
-          var range;
-
           if (originalParentElement.scrollTop < topScrollTrigger) {
             var oldScrollHeight = originalElement.scrollHeight;
-            range = prependMonth();
+            populateRange(prependMonth());
             originalParentElement.scrollTop = originalParentElement.scrollTop + (originalElement.scrollHeight - oldScrollHeight);
             colorizeMonth();
             $scope.$digest();
 
           }
           else if ((originalElement.scrollHeight - originalParentElement.offsetHeight) - originalParentElement.scrollTop < 700) {
-            range = appendMonth();
+            populateRange(appendMonth());
             colorizeMonth();
             $scope.$digest();
           }
-          if (range) populateRange(range);
         }
 
         function generateDay(day, date, data) {
@@ -402,8 +399,6 @@ https://medium.com/p/463bc649c7bd
           var offset = firstDayOffset([1, 2, 3, 4, 5, 6, 0], firstDayOfWeek)[tempDate.lastDateOfMonth().getDay()];
 
           var numWeeks = linesOfMonth(tempDate, offset);
-
-          console.log('calculated ' + numWeeks + ' for month ' + tempDate.getMonth() + ' with offset ' + offset);
           
           var dataLastDate = new Date(firstDate).subtractDays(1);
           var dataFirstDate = new Date(firstDate).subtractDays((numWeeks)*7);
@@ -512,6 +507,14 @@ https://medium.com/p/463bc649c7bd
           var lastDateOfMonth = (new Date(lastDate)).lastDateOfMonth();
           while (lastDate < lastDateOfMonth) appendWeek();
 
+          var dataFirstDate = new Date(seedDate);
+          var dataLastDate = new Date(seedDate);
+
+          return {
+            firstDate: dataFirstDate.goToFirstDayOfMonth().goToFirstDayOfWeek(firstDayOfWeek),
+            lastDate: dataLastDate.goToLastDayOfMonth().goToLastDayOfWeek(lastDayOfWeek)
+          };
+
         }
         
         function loadCalendarAroundDate(seedDate) {
@@ -522,12 +525,6 @@ https://medium.com/p/463bc649c7bd
 
           element.after('<div style="height:1200px"></div>');
 
-          var startDate = new Date(seedDate);
-          var endDate = new Date(seedDate);
-
-          startDate.subtractMonths(1).goToFirstDayOfMonth().goToFirstDayOfWeek(firstDayOfWeek);
-          endDate.addMonths(1).goToLastDayOfMonth().goToLastDayOfWeek(lastDayOfWeek);
-
           // console.log(startDate);
           // console.log(endDate);
 
@@ -537,11 +534,9 @@ https://medium.com/p/463bc649c7bd
           .then(function () {
             
             // build up calendar
-            completeFirstMonth(seedDate);
-            prependMonth();
-            appendMonth();
-
-            console.log(scrollDates);
+            populateRange(completeFirstMonth(seedDate));
+            populateRange(prependMonth());
+            populateRange(appendMonth());
 
             // get cell background color from css
             backgroundColor = getBackgroundColor();
@@ -857,7 +852,6 @@ https://medium.com/p/463bc649c7bd
             if (!oElement.attr('cal-day')) {
               ev.stopPropagation();
               var originScope = getOriginScope(oElement);
-              console.log(originScope[valueIdentifier]);
               calListeners.click(originScope[valueIdentifier]);
             }
           });

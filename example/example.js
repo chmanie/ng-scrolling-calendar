@@ -27,6 +27,10 @@
       console.log(day);
     };
 
+    $scope.entryClick = function (item) {
+      console.log(item);
+    };
+
   });
 
 })(angular);
