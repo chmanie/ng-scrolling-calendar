@@ -15,7 +15,7 @@
       <button ng-click="calInterface.scrollToPrevMonth()">Prev</button>
     </div>
     <div style="height:600px;width:100%;overflow-y:scroll">
-      <table calendar cal-data="getData($firstDate, $lastDate)" cal-drop="calDrop($item, $targetDay, $originDay)" cal-entry-click="entryClick($item)" cal-day-click="dayClick($day)" cal-day-template="day.html" cal-date-key="dateBegin" current-month="currentMonth" current-year="currentYear" cal-interface="calInterface"></table>
+      <table calendar cal-data="getData($firstDate, $lastDate)" cal-drop="calDrop($item, $targetDay, $originDay)" cal-entry-click="entryClick($item)" cal-day-click="dayClick($day)" cal-day-template="day.html" cal-date-key="dateBegin" current-month="currentMonth" current-year="currentYear" cal-interface="calInterface" cal-seed-date="seedDate"></table>
     </div>
     <div>{{ currentMonth }}</div>
   </div>

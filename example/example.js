@@ -31,6 +31,8 @@
       console.log(item);
     };
 
+    $scope.seedDate = new Date(2014, 7);
+
   });
 
 })(angular);

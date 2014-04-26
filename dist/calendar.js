@@ -480,8 +480,6 @@ Issues:
           return week;
         }
 
-
-
         function completeFirstMonth(seedDate) {
           var startDate = new Date(seedDate);
           firstDate = new Date(seedDate);
@@ -605,7 +603,10 @@ Issues:
 
         }
 
-        loadCalendarAroundDate(new Date());
+        var seedDate = new Date($parse(attrs.calSeedDate)($scope.$parent));
+        seedDate = (seedDate.valueOf()) ? seedDate : new Date();
+
+        loadCalendarAroundDate(seedDate);
 
       }
     };
