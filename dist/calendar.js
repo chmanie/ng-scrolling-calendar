@@ -163,7 +163,7 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
           , parentElement = element.parent()
           , originalParentElement = parentElement[0]
           , tableOffset = originalElement.offsetTop - originalParentElement.offsetTop
-          , scrollDates = [], dayScopes = {}, monthElements = {}
+          , monthBreakpoints = [], dayScopes = {}, monthElements = {}
           , entryDateKey = attrs.calDateKey
           , defaultBackgroundColor = [233, 229, 236]
           , offset = 0.5
@@ -172,6 +172,8 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
           , firstDayOfWeek = 1
           , mapLastDay = [6, 0, 1, 2, 3, 4, 5]
           , lastDayOfWeek = mapLastDay[firstDayOfWeek];
+
+        console.log(originalElement);
 
         calListeners.setScope($scope.$parent);
         calListeners.onDrop($parse(attrs.calDrop));
@@ -196,10 +198,10 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
 
         $scope.calInterface = {
           scrollToNextMonth: function () {
-            smoothScrollTo(scrollDates[activeScrollIndex+1].pos).then(function () {
-              if (!scrollDates[activeScrollIndex+2]) {
+            smoothScrollTo(monthBreakpoints[activeScrollIndex+1].pos).then(function () {
+              if (!monthBreakpoints[activeScrollIndex+2]) {
                 populateRange(appendMonth());
-                if (!scrollDates[activeScrollIndex+2]) {
+                if (!monthBreakpoints[activeScrollIndex+2]) {
                   // in very rare cases we need to add two months
                   populateRange(appendMonth());
                 }
@@ -207,11 +209,10 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
             });
           },
           scrollToPrevMonth: function () {
-            var oldScrollHeight = originalElement.scrollHeight;
-            smoothScrollTo(scrollDates[activeScrollIndex-1].pos).then(function () {
-              if (!scrollDates[activeScrollIndex-2]) {
+            smoothScrollTo(monthBreakpoints[activeScrollIndex-1].pos).then(function () {
+              if (!monthBreakpoints[activeScrollIndex-2]) {
                 populateRange(prependMonth());
-                originalParentElement.scrollTop = originalParentElement.scrollTop + (originalElement.scrollHeight - oldScrollHeight);
+                originalParentElement.scrollTop = monthBreakpoints[1].pos;
                 colorizeMonth();
               }
             });
@@ -240,26 +241,28 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
 
         function watchScrollIndex() {
 
-          setTimeout(watchScrollIndex, 100);
+          $timeout(watchScrollIndex, 100);
 
           var currentScrollMonth, currentScrollYear, nextScrollMonth, nextScrollYear;
 
-          if (scrollDates[currentScrollIndex+1] && originalParentElement.scrollTop >= scrollDates[currentScrollIndex+1].pos) {
+          if (monthBreakpoints[currentScrollIndex+1] && originalParentElement.scrollTop >= monthBreakpoints[currentScrollIndex+1].pos) {
             currentScrollIndex++;
-            console.log('added 1 to currentScrollIndex to ' + currentScrollIndex);
+            // console.log('added 1 to currentScrollIndex to ' + currentScrollIndex);
           }
 
-          if (scrollDates[currentScrollIndex] && originalParentElement.scrollTop < scrollDates[currentScrollIndex].pos && currentScrollIndex !== 0) {
+          if (monthBreakpoints[currentScrollIndex] && originalParentElement.scrollTop < monthBreakpoints[currentScrollIndex].pos && currentScrollIndex !== 0) {
             currentScrollIndex--;
-            console.log('subtracted 1 from currentScrollIndex to ' + currentScrollIndex);
+            // console.log('subtracted 1 from currentScrollIndex to ' + currentScrollIndex);
           }
 
           if (currentScrollIndex !== lastScrollIndex) {
 
+            console.log(currentScrollIndex);
+
             lastScrollIndex = currentScrollIndex;
 
-            currentScrollMonth = scrollDates[currentScrollIndex].month;
-            currentScrollYear = scrollDates[currentScrollIndex].year;
+            currentScrollMonth = monthBreakpoints[currentScrollIndex].month;
+            currentScrollYear = monthBreakpoints[currentScrollIndex].year;
 
             $scope.$apply(function () {
               $scope.currentMonth = currentScrollMonth;
@@ -289,9 +292,9 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
             }
           }
 
-          if (scrollDates[currentScrollIndex] && scrollDates[currentScrollIndex+1]) {
-            var difference = scrollDates[currentScrollIndex+1].pos - scrollDates[currentScrollIndex].pos;
-            var pos = originalParentElement.scrollTop - scrollDates[currentScrollIndex].pos;
+          if (monthBreakpoints[currentScrollIndex] && monthBreakpoints[currentScrollIndex+1]) {
+            var difference = monthBreakpoints[currentScrollIndex+1].pos - monthBreakpoints[currentScrollIndex].pos;
+            var pos = originalParentElement.scrollTop - monthBreakpoints[currentScrollIndex].pos;
             var percentage = (pos/difference);
             // var backgroundOpacity = (percentage-offset)*speed/(1-offset);
             
@@ -301,18 +304,19 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
                 setBackgroundOpacity(nextMonthElms, 0);
               }
               activeScrollIndex = currentScrollIndex+1;
-              console.log('set activeScrollIndex to ', activeScrollIndex);
+              // console.log('set activeScrollIndex to ', activeScrollIndex);
             } else {
               setBackgroundOpacity(currentMonthElms, 0);
               setBackgroundOpacity(nextMonthElms, 1);
               activeScrollIndex = currentScrollIndex;
-              console.log('set activeScrollIndex to ', activeScrollIndex);
+              // console.log('set activeScrollIndex to ', activeScrollIndex);
             }
           }
         }
 
         function expandCalendar() {
           if (originalParentElement.scrollTop < topScrollTrigger) {
+            console.log(monthBreakpoints);
             var oldScrollHeight = originalElement.scrollHeight;
             populateRange(prependMonth());
             originalParentElement.scrollTop = originalParentElement.scrollTop + (originalElement.scrollHeight - oldScrollHeight);
@@ -397,18 +401,23 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
           var dataLastDate = new Date(firstDate).subtractDays(1);
           var dataFirstDate = new Date(firstDate).subtractDays((numWeeks)*7);
 
-          var week;
+          var firstWeek, lastWeek;
             
           for(var i = 0; i < numWeeks; i++) {
-            week = prependWeek();
+            if (i === 0) {
+              lastWeek = prependWeek();
+            } else {
+              firstWeek = prependWeek();
+            }
           }
 
-          // shift all the other breakpoints
-          for (var j = scrollDates.length - 1; j >= 0; j--) {
-            scrollDates[j].pos = scrollDates[j].pos + week.offsetHeight*(numWeeks);
-          }
           var monthDate = (new Date(firstDate)).addDays(7);
-          scrollDates.unshift({ month: monthDate.getMonth(), pos: week.offsetTop + tableOffset, year: monthDate.getYear() });
+            // shift all the other breakpoints
+          for (var j = monthBreakpoints.length - 1; j >= 0; j--) {
+            monthBreakpoints[j].pos = monthBreakpoints[j].pos + (lastWeek.offsetTop - firstWeek.offsetTop + lastWeek.offsetHeight);
+          }
+          
+          monthBreakpoints.unshift({ month: monthDate.getMonth(), pos: 0, year: monthDate.getYear() });
 
           return {
             firstDate: dataFirstDate,
@@ -463,7 +472,10 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
           do {
             lastDate.addDays(1);
             if(lastDate.getDate() === 1) {
-              scrollDates.push({ month: lastDate.getMonth(), pos: week.offsetTop + tableOffset, year: lastDate.getYear() });
+              var tempDate = new Date(lastDate);
+              $timeout(function () {
+                monthBreakpoints.push({ month: tempDate.getMonth(), pos: week.offsetTop + tableOffset, year: tempDate.getYear() });
+              }, 50);
             }
             var day = week.insertCell(-1);
             generateDay(day, lastDate);
@@ -490,7 +502,7 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
             week = prependWeek();
           }
           if (week) {
-            scrollDates.push({ month: lastDate.getMonth(), pos: week.offsetTop + tableOffset, year: lastDate.getYear() });
+            monthBreakpoints.push({ month: lastDate.getMonth(), pos: week.offsetTop + tableOffset, year: lastDate.getYear() });
           } else {
             // date already is in the first week of current month. just append one week
             week = appendWeek();
@@ -537,6 +549,9 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
             currentScrollIndex = 1;
 
             $timeout(function () {
+
+              console.log(monthBreakpoints);
+
               watchScrollIndex();
               parentElement.css('visibility', 'visible');
               // scroll to current month
