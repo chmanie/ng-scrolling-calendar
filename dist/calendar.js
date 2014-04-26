@@ -545,14 +545,12 @@ Issues:
             backgroundColor = getBackgroundColor();
             currentScrollIndex = 1;
 
+            originalParentElement.scrollTop = firstWeekElement.offsetTop + tableOffset;
+            parentElement.css('visibility', 'visible');
+
             $timeout(function () {
-
-              // console.log(monthBreakpoints);
-
               watchScrollIndex();
-              parentElement.css('visibility', 'visible');
-              // scroll to current month
-              smoothScrollTo(firstWeekElement.offsetTop + tableOffset);
+              colorizeMonth();
             });
 
             addWheelListener(originalParentElement, function () {
