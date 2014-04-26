@@ -22,8 +22,6 @@ https://medium.com/p/463bc649c7bd
 
 Issues:
 
-smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
-
  */
 
 
@@ -173,7 +171,7 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
           , mapLastDay = [6, 0, 1, 2, 3, 4, 5]
           , lastDayOfWeek = mapLastDay[firstDayOfWeek];
 
-        console.log(originalElement);
+        // console.log(originalElement);
 
         calListeners.setScope($scope.$parent);
         calListeners.onDrop($parse(attrs.calDrop));
@@ -257,7 +255,7 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
 
           if (currentScrollIndex !== lastScrollIndex) {
 
-            console.log(currentScrollIndex);
+            // console.log(currentScrollIndex);
 
             lastScrollIndex = currentScrollIndex;
 
@@ -316,7 +314,7 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
 
         function expandCalendar() {
           if (originalParentElement.scrollTop < topScrollTrigger) {
-            console.log(monthBreakpoints);
+            // console.log(monthBreakpoints);
             var oldScrollHeight = originalElement.scrollHeight;
             populateRange(prependMonth());
             originalParentElement.scrollTop = originalParentElement.scrollTop + (originalElement.scrollHeight - oldScrollHeight);
@@ -549,7 +547,7 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
 
             $timeout(function () {
 
-              console.log(monthBreakpoints);
+              // console.log(monthBreakpoints);
 
               watchScrollIndex();
               parentElement.css('visibility', 'visible');
@@ -568,7 +566,7 @@ smooth scroll does not work correctly in firefox, has offsets in IE10 and FF
 
         function getBackgroundColor() {
           var cssBackground;
-          var todayElm = originalDocument.getElementsByClassName('today')[0];
+          var todayElm = originalDocument.getElementsByTagName('td')[0];
           if (todayElm.currentStyle) {
             cssBackground = todayElm.currentStyle.backgroundColor || '';
           } else {
