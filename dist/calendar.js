@@ -22,6 +22,7 @@ https://medium.com/p/463bc649c7bd
 
 Issues:
 
+
  */
 
 
@@ -284,9 +285,7 @@ Issues:
 
           function setBackgroundOpacity(elements, opacity) {
             for (var i = elements.length - 1; i >= 0; i--) {
-              elements[i].css({
-                'background-color': 'rgba(' + backgroundColor + ', ' + opacity + ')'
-              });
+              elements[i].css('background-color', 'rgba(' + backgroundColor + ', ' + opacity + ')');
             }
           }
 
@@ -573,9 +572,11 @@ Issues:
           return color.slice(1,4).join(',');
         }
 
+        var scrolling = false;
+
         function smoothScrollTo(pos) {
 
-          if (originalParentElement.scrollTop === pos) return;
+          if (originalParentElement.scrollTop === pos || scrolling) return;
 
           var deferred = $q.defer();
           var startTime = new Date();
@@ -587,8 +588,10 @@ Issues:
 
           function scroll() {
             if (originalPos > pos && originalParentElement.scrollTop <= pos) {
+              scrolling = false;
               return deferred.resolve(originalParentElement.scrollTop);
             } else if (originalPos < pos && originalParentElement.scrollTop >= pos) {
+              scrolling = false;
               return deferred.resolve(originalParentElement.scrollTop);
             }
             var percent = (new Date() - startTime) / 1000;
@@ -597,6 +600,7 @@ Issues:
             requestAnimationFrame(scroll);
           }
 
+          scrolling = true;
           scroll();
 
           return deferred.promise;
