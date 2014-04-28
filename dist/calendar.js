@@ -343,7 +343,7 @@ Issues:
 
           dayScopes[date.getDayKey()] = scope;
 
-          var monthKey = [date.getYear(), date.getMonth()].join('_');
+          var monthKey = [date.getFullYear(), date.getMonth()].join('_');
           monthElements[monthKey] = monthElements[monthKey] || [];
           monthElements[monthKey].push(day);
 
@@ -415,7 +415,7 @@ Issues:
             monthBreakpoints[j].pos = monthBreakpoints[j].pos + (lastWeek.offsetTop - firstWeek.offsetTop + lastWeek.offsetHeight);
           }
           
-          monthBreakpoints.unshift({ month: monthDate.getMonth(), pos: 0, year: monthDate.getYear() });
+          monthBreakpoints.unshift({ month: monthDate.getMonth(), pos: 0, year: monthDate.getFullYear() });
 
           return {
             firstDate: dataFirstDate,
@@ -471,7 +471,7 @@ Issues:
             lastDate.addDays(1);
             if(lastDate.getDate() === 1) {
               var tempDate = new Date(lastDate);
-              monthBreakpoints.push({ month: tempDate.getMonth(), pos: week.offsetTop + tableOffset, year: tempDate.getYear() });
+              monthBreakpoints.push({ month: tempDate.getMonth(), pos: week.offsetTop + tableOffset, year: tempDate.getFullYear() });
             }
             var day = week.insertCell(-1);
             generateDay(day, lastDate);
@@ -496,7 +496,7 @@ Issues:
             week = prependWeek();
           }
           if (week) {
-            monthBreakpoints.push({ month: lastDate.getMonth(), pos: week.offsetTop + tableOffset, year: lastDate.getYear() });
+            monthBreakpoints.push({ month: lastDate.getMonth(), pos: week.offsetTop + tableOffset, year: lastDate.getFullYear() });
           } else {
             // date already is in the first week of current month. just append one week
             week = appendWeek();
