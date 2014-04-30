@@ -67,6 +67,20 @@ Issues:
     return this;
   };
 
+  Date.prototype.goToDayBegin = function () {
+    this.setHours(0);
+    this.setMinutes(0);
+    this.setSeconds(0);
+    return this;
+  };
+
+  Date.prototype.goToDayEnd = function () {
+    this.setHours(23);
+    this.setMinutes(59);
+    this.setSeconds(59);
+    return this;
+  };
+
   Date.prototype.firstDateOfMonth = function () {
     return new Date(this.getFullYear(), this.getMonth(), 1);
   };
@@ -320,10 +334,7 @@ Issues:
             // console.log(percentage);
             
             if (percentage > offset) {
-              if (percentage < 1) {
-                setBackgroundOpacity(currentMonthElms, 1);
-                setBackgroundOpacity(nextMonthElms, 0);
-              } else if (percentage === 1) {
+              if (percentage <= 1) {
                 setBackgroundOpacity(currentMonthElms, 1);
                 setBackgroundOpacity(nextMonthElms, 0);
               }
@@ -456,8 +467,8 @@ Issues:
           monthBreakpoints.unshift({ month: monthDate.getMonth(), pos: 0, year: monthDate.getFullYear() });
 
           return {
-            firstDate: dataFirstDate,
-            lastDate: dataLastDate
+            firstDate: dataFirstDate.goToDayBegin(),
+            lastDate: dataLastDate.goToDayEnd()
           };
 
         }
@@ -480,8 +491,8 @@ Issues:
           for(var i = 0; i < numWeeks; i++) appendWeek();
 
           return {
-            firstDate: dataFirstDate,
-            lastDate: dataLastDate
+            firstDate: dataFirstDate.goToDayBegin(),
+            lastDate: dataLastDate.goToDayEnd()
           };
 
         }
@@ -548,8 +559,8 @@ Issues:
           var dataLastDate = new Date(seedDate);
 
           return {
-            firstDate: dataFirstDate.goToFirstDayOfMonth().goToFirstDayOfWeek(firstDayOfWeek),
-            lastDate: dataLastDate.goToLastDayOfMonth().goToLastDayOfWeek(lastDayOfWeek)
+            firstDate: dataFirstDate.goToFirstDayOfMonth().goToFirstDayOfWeek(firstDayOfWeek).goToDayBegin(),
+            lastDate: dataLastDate.goToLastDayOfMonth().goToLastDayOfWeek(lastDayOfWeek).goToDayEnd()
           };
 
         }
