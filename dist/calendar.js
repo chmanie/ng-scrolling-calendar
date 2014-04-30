@@ -22,6 +22,7 @@ https://medium.com/p/463bc649c7bd
 
 Issues:
 
+- Scroll to today does not work when calendar wasn't built around today
 
  */
 
@@ -154,9 +155,10 @@ Issues:
       // compile: function(tElement, tAttrs, function transclude(function(scope, cloneLinkingFn){ return function linking(scope, elm, attrs){}})),
       link: function($scope, element, attrs, controller) {
 
-        var firstWeekElement, firstDate, lastDate, backgroundColor, dayTemplate
+        var seedDateElement, todayElement, firstDate, lastDate, backgroundColor, dayTemplate
           , currentMonthElms, nextMonthElms
           , currentScrollIndex, lastScrollIndex, activeScrollIndex
+          , seedDate = new Date($parse(attrs.calSeedDate)($scope.$parent))
           , originalElement = element[0]
           , originalDocument = $document[0]
           , parentElement = element.parent()
@@ -217,7 +219,8 @@ Issues:
             });
           },
           scrollToToday: function () {
-            smoothScrollTo(firstWeekElement.offsetTop);
+            console.log(todayElement);
+            // smoothScrollTo(todayElement.offsetTop);
           }
         };
 
@@ -349,7 +352,14 @@ Issues:
 
           day.html(dayTemplate);
   
-          if (scope.$isToday) day.addClass('today');
+          if (scope.$isToday) {
+            todayElement = day;
+            day.addClass('today');
+          }
+
+          if (seedDate.isSameDay(scope.$dateObj)) {
+            seedDateElement = day;
+          }
 
           day.bind('click', function () {
             dayClick(scope);
@@ -501,7 +511,6 @@ Issues:
             // date already is in the first week of current month. just append one week
             week = appendWeek();
           }
-          if (!firstWeekElement) firstWeekElement = week;
 
           // next weeks
           var lastDateOfMonth = (new Date(lastDate)).lastDateOfMonth();
@@ -525,9 +534,6 @@ Issues:
 
           element.after('<div style="height:1200px"></div>');
 
-          // console.log(startDate);
-          // console.log(endDate);
-
           // async http operations
           getDayTemplate()
 
@@ -542,8 +548,9 @@ Issues:
             backgroundColor = getBackgroundColor();
             currentScrollIndex = 1;
 
-            originalParentElement.scrollTop = firstWeekElement.offsetTop + tableOffset;
+            originalParentElement.scrollTop = seedDateElement[0].offsetTop + tableOffset;
             parentElement.css('visibility', 'visible');
+
 
             $timeout(function () {
               watchScrollIndex();
@@ -560,12 +567,11 @@ Issues:
         }
 
         function getBackgroundColor() {
-          var cssBackground;
-          var todayElm = originalDocument.getElementsByTagName('td')[0];
-          if (todayElm.currentStyle) {
-            cssBackground = todayElm.currentStyle.backgroundColor || '';
+          var cssBackground, firstTableCell = originalDocument.getElementsByTagName('td')[0];
+          if ($window.getComputedStyle) {
+            cssBackground = $window.getComputedStyle(firstTableCell)['backgroundColor'] || '';
           } else {
-            cssBackground = $window.getComputedStyle(todayElm)['backgroundColor'] || '';
+            cssBackground = firstTableCell.currentStyle.backgroundColor || '';
           }
           var color = cssBackground.match(/rgb\((\d{1,3}),\s(\d{1,3}),\s(\d{1,3})\)/);
           if (!color) return defaultBackgroundColor.join(',');
@@ -607,7 +613,6 @@ Issues:
 
         }
 
-        var seedDate = new Date($parse(attrs.calSeedDate)($scope.$parent));
         seedDate = (seedDate.valueOf()) ? seedDate : new Date();
 
         loadCalendarAroundDate(seedDate);
