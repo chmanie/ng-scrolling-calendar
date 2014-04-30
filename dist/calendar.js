@@ -340,7 +340,7 @@ Issues:
           scope.$month = date.getMonth()+1;
           scope.$isToday = date.isSameDay(new Date());
           scope.$isPastDate = date < new Date() && !date.isSameDay(new Date());
-          scope.showMonthTitle = date.getDay() === lastDayOfWeek && date.getDate() <= 7;
+          scope.$showMonthTitle = date.getDay() === lastDayOfWeek && date.getDate() <= 7;
 
           day = angular.element(day);
 
