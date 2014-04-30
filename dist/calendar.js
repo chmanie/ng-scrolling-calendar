@@ -155,16 +155,15 @@ Issues:
       // compile: function(tElement, tAttrs, function transclude(function(scope, cloneLinkingFn){ return function linking(scope, elm, attrs){}})),
       link: function($scope, element, attrs, controller) {
 
-        var seedDateElement, todayElement, firstDate, lastDate, backgroundColor, dayTemplate
+        var seedDateElement, todayElement, firstDate, lastDate, backgroundColor, dayTemplate, tableOffset
           , currentMonthElms, nextMonthElms
           , currentScrollIndex, lastScrollIndex, activeScrollIndex
+          , monthBreakpoints, dayScopes, monthElements
           , seedDate = new Date($parse(attrs.calSeedDate)($scope.$parent))
           , originalElement = element[0]
           , originalDocument = $document[0]
           , parentElement = element.parent()
           , originalParentElement = parentElement[0]
-          , tableOffset = originalElement.offsetTop - originalParentElement.offsetTop
-          , monthBreakpoints = [], dayScopes = {}, monthElements = {}
           , entryDateKey = attrs.calDateKey
           , defaultBackgroundColor = [233, 229, 236]
           , offset = 0.5
@@ -173,8 +172,6 @@ Issues:
           , firstDayOfWeek = 1
           , mapLastDay = [6, 0, 1, 2, 3, 4, 5]
           , lastDayOfWeek = mapLastDay[firstDayOfWeek];
-
-        // console.log(originalElement);
 
         calListeners.setScope($scope.$parent);
         calListeners.onDrop($parse(attrs.calDrop));
@@ -197,30 +194,49 @@ Issues:
           });
         }
 
+        function appendMoreMonthsIfNeeded() {
+          if (!monthBreakpoints[activeScrollIndex+2]) {
+            populateRange(appendMonth());
+            if (!monthBreakpoints[activeScrollIndex+2]) {
+              // in very rare cases we need to add two months
+              populateRange(appendMonth());
+            }
+          }
+        }
+
+        function prependMoreMonthsIfNeeded() {
+          if (!monthBreakpoints[activeScrollIndex-2]) {
+            populateRange(prependMonth());
+            originalParentElement.scrollTop = monthBreakpoints[activeScrollIndex+1].pos;
+            activeScrollIndex = activeScrollIndex + 1;
+            // colorizeMonth();
+          }
+        }
+
         $scope.calInterface = {
           scrollToNextMonth: function () {
-            smoothScrollTo(monthBreakpoints[activeScrollIndex+1].pos).then(function () {
-              if (!monthBreakpoints[activeScrollIndex+2]) {
-                populateRange(appendMonth());
-                if (!monthBreakpoints[activeScrollIndex+2]) {
-                  // in very rare cases we need to add two months
-                  populateRange(appendMonth());
-                }
-              }
-            });
+            smoothScrollTo(monthBreakpoints[activeScrollIndex+1].pos)
+              .then(appendMoreMonthsIfNeeded);
           },
           scrollToPrevMonth: function () {
-            smoothScrollTo(monthBreakpoints[activeScrollIndex-1].pos).then(function () {
-              if (!monthBreakpoints[activeScrollIndex-2]) {
-                populateRange(prependMonth());
-                originalParentElement.scrollTop = monthBreakpoints[activeScrollIndex+1].pos;
-                colorizeMonth();
-              }
-            });
+            smoothScrollTo(monthBreakpoints[activeScrollIndex-1].pos)
+              .then(prependMoreMonthsIfNeeded);
           },
           scrollToToday: function () {
-            console.log(todayElement);
-            // smoothScrollTo(todayElement.offsetTop);
+            // - possibility 2: append or prepend rows until today-element appears (maybe in second version)
+            //
+            // * possibility 1: remove all table rows and build new calendar around today
+            if (!todayElement) {
+              angular.element(originalDocument.getElementsByTagName('tr')).remove();
+              seedDate = new Date();
+              loadCalendarAroundDate(seedDate);
+              $timeout(colorizeMonth, 50);
+            } else {
+              smoothScrollTo(todayElement[0].offsetTop - tableOffset).then(function () {
+                appendMoreMonthsIfNeeded();
+                prependMoreMonthsIfNeeded();
+              });
+            }
           }
         };
 
@@ -243,9 +259,9 @@ Issues:
 
         function watchScrollIndex() {
 
-          $timeout(watchScrollIndex, 100);
-
           var currentScrollMonth, currentScrollYear, nextScrollMonth, nextScrollYear;
+
+          $timeout(watchScrollIndex, 100);
 
           if (monthBreakpoints[currentScrollIndex+1] && originalParentElement.scrollTop >= monthBreakpoints[currentScrollIndex+1].pos) {
             currentScrollIndex++;
@@ -281,6 +297,9 @@ Issues:
             currentMonthElms = monthElements[[currentScrollYear, currentScrollMonth].join('_')];
             nextMonthElms = monthElements[[nextScrollYear, nextScrollMonth].join('_')];
 
+            // update color and active scroll index when month elements have changed
+            requestAnimationFrame(colorizeMonth);
+
           }
         }
 
@@ -297,9 +316,14 @@ Issues:
             var pos = originalParentElement.scrollTop - monthBreakpoints[currentScrollIndex].pos;
             var percentage = (pos/difference);
             // var backgroundOpacity = (percentage-offset)*speed/(1-offset);
+
+            // console.log(percentage);
             
             if (percentage > offset) {
               if (percentage < 1) {
+                setBackgroundOpacity(currentMonthElms, 1);
+                setBackgroundOpacity(nextMonthElms, 0);
+              } else if (percentage === 1) {
                 setBackgroundOpacity(currentMonthElms, 1);
                 setBackgroundOpacity(nextMonthElms, 0);
               }
@@ -320,11 +344,11 @@ Issues:
             var oldScrollHeight = originalElement.scrollHeight;
             populateRange(prependMonth());
             originalParentElement.scrollTop = originalParentElement.scrollTop + (originalElement.scrollHeight - oldScrollHeight);
-            $timeout(colorizeMonth);
+            // $timeout(colorizeMonth);
             $scope.$digest();
           } else if ((originalElement.scrollHeight - originalParentElement.offsetHeight) - originalParentElement.scrollTop < 700) {
             populateRange(appendMonth());
-            $timeout(colorizeMonth);
+            // $timeout(colorizeMonth);
             $scope.$digest();
           }
         }
@@ -343,6 +367,10 @@ Issues:
           scope.$showMonthTitle = date.getDay() === lastDayOfWeek && date.getDate() <= 7;
 
           day = angular.element(day);
+
+          if (tableOffset === undefined) {
+            tableOffset = originalElement.offsetTop - day[0].offsetParent.offsetTop;
+          }
 
           dayScopes[date.getDayKey()] = scope;
 
@@ -481,7 +509,7 @@ Issues:
             lastDate.addDays(1);
             if(lastDate.getDate() === 1) {
               var tempDate = new Date(lastDate);
-              monthBreakpoints.push({ month: tempDate.getMonth(), pos: week.offsetTop + tableOffset, year: tempDate.getFullYear() });
+              monthBreakpoints.push({ month: tempDate.getMonth(), pos: week.offsetTop, year: tempDate.getFullYear() });
             }
             var day = week.insertCell(-1);
             generateDay(day, lastDate);
@@ -506,7 +534,7 @@ Issues:
             week = prependWeek();
           }
           if (week) {
-            monthBreakpoints.push({ month: lastDate.getMonth(), pos: week.offsetTop + tableOffset, year: lastDate.getFullYear() });
+            monthBreakpoints.push({ month: lastDate.getMonth(), pos: week.offsetTop, year: lastDate.getFullYear() });
           } else {
             // date already is in the first week of current month. just append one week
             week = appendWeek();
@@ -530,9 +558,11 @@ Issues:
 
           if(!seedDate) throw new Error('seedDate is required!');
 
-          parentElement.css('visibility', 'hidden');
+          monthBreakpoints = [];
+          dayScopes = {};
+          monthElements = {};
 
-          element.after('<div style="height:1200px"></div>');
+          parentElement.css('visibility', 'hidden');
 
           // async http operations
           getDayTemplate()
@@ -542,25 +572,20 @@ Issues:
             // build up calendar
             populateRange(completeFirstMonth(seedDate));
             populateRange(prependMonth());
+            populateRange(prependMonth());
             populateRange(appendMonth());
-
+            populateRange(appendMonth());
+            
             // get cell background color from css
             backgroundColor = getBackgroundColor();
             currentScrollIndex = 1;
 
-            originalParentElement.scrollTop = seedDateElement[0].offsetTop + tableOffset;
+            // console.log(seedDateElement);
+
+            originalParentElement.scrollTop = seedDateElement[0].offsetTop - tableOffset;
+            // console.log(seedDateElement[0].offsetParent);
+            // console.log(seedDateElement);
             parentElement.css('visibility', 'visible');
-
-
-            $timeout(function () {
-              watchScrollIndex();
-              colorizeMonth();
-            });
-
-            addWheelListener(originalParentElement, function () {
-              requestAnimationFrame(colorizeMonth);
-              expandCalendar();
-            });
 
           });
           
@@ -582,9 +607,12 @@ Issues:
 
         function smoothScrollTo(pos) {
 
-          if (originalParentElement.scrollTop === pos || scrolling) return;
-
           var deferred = $q.defer();
+          if (originalParentElement.scrollTop === pos || scrolling) {
+            deferred.reject(new Error('Already scrolling or already there!'));
+            return deferred.promise;
+          }
+
           var startTime = new Date();
           var originalPos = originalParentElement.scrollTop;
 
@@ -616,6 +644,15 @@ Issues:
         seedDate = (seedDate.valueOf()) ? seedDate : new Date();
 
         loadCalendarAroundDate(seedDate);
+
+        $timeout(function () {
+          watchScrollIndex();
+        }, 50);
+
+        addWheelListener(originalParentElement, function () {
+          requestAnimationFrame(colorizeMonth);
+          expandCalendar();
+        });
 
       }
     };
