@@ -169,7 +169,7 @@ Issues:
           , offset = 0.5
           , speed = 2
           , topScrollTrigger = 200
-          , firstDayOfWeek = 1
+          , firstDayOfWeek = parseInt(attrs.calFirstDay, 10)
           , mapLastDay = [6, 0, 1, 2, 3, 4, 5]
           , lastDayOfWeek = mapLastDay[firstDayOfWeek];
 
