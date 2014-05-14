@@ -520,11 +520,17 @@ Issues:
             lastDate.addDays(1);
             if(lastDate.getDate() === 1) {
               var tempDate = new Date(lastDate);
-              monthBreakpoints.push({ month: tempDate.getMonth(), pos: week.offsetTop, year: tempDate.getFullYear() });
+              // wait for browser to correctly calculate offsetTop
+              $timeout(addBreakpoint, 50);
             }
             var day = week.insertCell(-1);
             generateDay(day, lastDate);
           } while (lastDate.getDay() !== lastDayOfWeek);
+
+          function addBreakpoint() {
+            monthBreakpoints.push({ month: tempDate.getMonth(), pos: week.offsetTop, year: tempDate.getFullYear() });
+          }
+
           return week;
         }
 
@@ -575,6 +581,9 @@ Issues:
 
           parentElement.css('visibility', 'hidden');
 
+          // we need this for scrolling on very big screens
+          element.after('<div style="height:1200px"></div>');
+
           // async http operations
           getDayTemplate()
 
@@ -597,6 +606,8 @@ Issues:
             // console.log(seedDateElement[0].offsetParent);
             // console.log(seedDateElement);
             parentElement.css('visibility', 'visible');
+
+            $timeout(colorizeMonth);
 
           });
           
