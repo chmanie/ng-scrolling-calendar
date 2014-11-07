@@ -11,7 +11,7 @@ body {
 /*
 Do: separate scroll handler from rAF render loop
 Do: minimize layout cost in render loop.  (Use textContent rather than innerHTML. Use overflow:hidden to keep layout boundary close)
-Do: retain inertial scrolling. 
+Do: retain inertial scrolling.
 Do: GPU accelerate the layer
 Don't: have a hover effect that can trigger during scroll
 Don't: do anything more than get a scroll offset in the scroll event handler
@@ -145,9 +145,7 @@ Issues:
     };
   });
 
-  var calName = 'calendar';
-
-  angular.module('scrollingCalendar').directive(calName, function($window, $document, $timeout, $compile, calListeners, $parse, $q, $http, $templateCache){
+  angular.module('scrollingCalendar').directive('calendar', ['$window', '$document', '$timeout', '$compile', 'calListeners', '$parse', '$q', '$http', '$templateCache', function($window, $document, $timeout, $compile, calListeners, $parse, $q, $http, $templateCache){
     // Runs during compile
 
     return {
@@ -300,7 +298,7 @@ Issues:
               $scope.currentMonth = currentScrollMonth;
               $scope.currentYear = currentScrollYear;
             });
-            
+
             if (currentScrollMonth === 11) {
               nextScrollMonth = 0;
               nextScrollYear = currentScrollYear+1;
@@ -332,7 +330,7 @@ Issues:
             // var backgroundOpacity = (percentage-offset)*speed/(1-offset);
 
             // console.log(percentage);
-            
+
             if (percentage > offset) {
               if (percentage <= 1) {
                 setBackgroundOpacity(currentMonthElms, 1);
@@ -390,7 +388,7 @@ Issues:
           monthElements[monthKey].push(day);
 
           day.html(dayTemplate);
-  
+
           if (scope.$isToday) {
             todayElement = day;
             day.addClass('today');
@@ -405,7 +403,7 @@ Issues:
           });
 
           $compile(day)(scope);
-          
+
         }
 
         function firstDayOffset (offsetArray, firstDayOfWeek) {
@@ -423,7 +421,7 @@ Issues:
           }
 
           return retArray;
-          
+
         }
 
         function linesOfMonth (date, offset) {
@@ -443,12 +441,12 @@ Issues:
           var offset = firstDayOffset([1, 2, 3, 4, 5, 6, 0], firstDayOfWeek)[tempDate.lastDateOfMonth().getDay()];
 
           var numWeeks = linesOfMonth(tempDate, offset);
-          
+
           var dataLastDate = new Date(firstDate).subtractDays(1);
           var dataFirstDate = new Date(firstDate).subtractDays((numWeeks)*7);
 
           var firstWeek, lastWeek;
-            
+
           for(var i = 0; i < numWeeks; i++) {
             if (i === 0) {
               lastWeek = prependWeek();
@@ -458,12 +456,12 @@ Issues:
           }
 
           var monthDate = (new Date(firstDate)).addDays(7);
-          
+
           // shift all the other breakpoints
           for (var j = monthBreakpoints.length - 1; j >= 0; j--) {
             monthBreakpoints[j].pos = monthBreakpoints[j].pos + (lastWeek.offsetTop - firstWeek.offsetTop + lastWeek.offsetHeight);
           }
-          
+
           monthBreakpoints.unshift({ month: monthDate.getMonth(), pos: 0, year: monthDate.getFullYear() });
 
           return {
@@ -570,7 +568,7 @@ Issues:
           };
 
         }
-        
+
         function loadCalendarAroundDate(seedDate) {
 
           if(!seedDate) throw new Error('seedDate is required!');
@@ -588,14 +586,14 @@ Issues:
           getDayTemplate()
 
           .then(function () {
-            
+
             // build up calendar
             populateRange(completeFirstMonth(seedDate));
             populateRange(prependMonth());
             populateRange(prependMonth());
             populateRange(appendMonth());
             populateRange(appendMonth());
-            
+
             // get cell background color from css
             backgroundColor = getBackgroundColor();
             currentScrollIndex = 1;
@@ -610,7 +608,7 @@ Issues:
             $timeout(colorizeMonth);
 
           });
-          
+
         }
 
         function getBackgroundColor() {
@@ -678,7 +676,7 @@ Issues:
 
       }
     };
-  });
+  }]);
 
   /*
    * forked from angular-dragon-drop v0.3.1
@@ -686,7 +684,7 @@ Issues:
    * License: MIT
    */
 
-  angular.module('scrollingCalendar').directive('calDay', function ($document, $compile, $rootScope, calListeners, $timeout, $window) {
+  angular.module('scrollingCalendar').directive('calDay', ['$document', '$compile', '$rootScope', 'calListeners', '$timeout', '$window', function ($document, $compile, $rootScope, calListeners, $timeout, $window) {
 
     var body = $document[0].body,
       dragValue,
@@ -782,7 +780,7 @@ Issues:
     };
 
     $document.bind('mouseup', function (ev) {
-      
+
       enableSelect();
 
       if (!dragValue) {
@@ -809,7 +807,7 @@ Issues:
         var match = expression.match(/^\s*(.+)\s+in\s+(.*?)\s*$/);
 
         var targetList = targetScope.$eval(match[2]);
-        
+
         var copy = originScope.$eval(originElement.attr('cal-entry-copyable'));
         var newDragValue = angular.copy(dragValue);
         var newDragKey = angular.copy(dragKey);
@@ -824,7 +822,7 @@ Issues:
               remove(dragOrigin, dragKey || dragOrigin.indexOf(dragValue));
             });
           }
-          
+
           killFloaty();
         } else {
           originElement.css({ 'visibility': 'visible'});
@@ -991,7 +989,7 @@ Issues:
       }
     };
 
-  });
+  }]);
 
 })(angular);
 
@@ -1094,7 +1092,7 @@ Issues:
             originalEvent.returnValue = false;
           }
         };
-        
+
         // calculate deltaY (and deltaX) according to the event
         if ( support === 'mousewheel' ) {
           event.deltaY = - 1/40 * originalEvent.wheelDelta;
