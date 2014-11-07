@@ -944,10 +944,10 @@ Issues:
 
             function grabElement() {
 
+              if (!originScope) return;
+
               var copy = originScope.$eval(child.attr('cal-entry-copyable'));
               originElement = oElement;
-
-              if (!originScope) return;
 
               var canDrag = originScope.$eval(child.attr('cal-entry-draggable'));
               if (dragValue || !canDrag || originElement.attr('cal-day')) {
