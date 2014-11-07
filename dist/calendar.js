@@ -809,17 +809,22 @@ Issues:
         var match = expression.match(/^\s*(.+)\s+in\s+(.*?)\s*$/);
 
         var targetList = targetScope.$eval(match[2]);
-
+        
+        var copy = originScope.$eval(originElement.attr('cal-entry-copyable'));
+        var newDragValue = angular.copy(dragValue);
+        var newDragKey = angular.copy(dragKey);
         if (targetList !== dragOrigin) {
           targetScope.$apply(function () {
-            add(targetList, dragValue, dragKey);
+            add(targetList, newDragValue, newDragKey);
           });
+          calListeners.drop(newDragValue, targetScope, originScope.$parent);
 
-          calListeners.drop(dragValue, targetScope, originScope.$parent);
-
-          $rootScope.$apply(function () {
-            remove(dragOrigin, dragKey || dragOrigin.indexOf(dragValue));
-          });
+          if(!copy) {
+            $rootScope.$apply(function () {
+              remove(dragOrigin, dragKey || dragOrigin.indexOf(dragValue));
+            });
+          }
+          
           killFloaty();
         } else {
           originElement.css({ 'visibility': 'visible'});
@@ -941,12 +946,12 @@ Issues:
 
             function grabElement() {
 
+              var copy = originScope.$eval(child.attr('cal-entry-copyable'));
               originElement = oElement;
 
               if (!originScope) return;
 
               var canDrag = originScope.$eval(child.attr('cal-entry-draggable'));
-
               if (dragValue || !canDrag || originElement.attr('cal-day')) {
                 return;
               }
@@ -976,7 +981,9 @@ Issues:
               originElemOffsetY = offset.top;
 
               spawnFloaty();
-              originElement.css({ 'visibility': 'hidden'});
+              if(!copy){
+                originElement.css({ 'visibility': 'hidden'});
+              }
               drag(ev);
             }
           });
